@@ -1,2 +1,23 @@
+# Quarto build output (not used for GitHub Pages in this setup)
+_site/
+_freeze/
 /.quarto/
 **/*.quarto_ipynb
+
+# renv local libraries (keep lockfile!)
+renv/library/
+renv/staging/
+renv/python/
+
+# R / misc
+.Rhistory
+.RData
+.Rproj.user/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/

@@ -1,0 +1,79 @@
+---
+title: "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing"
+author: "Robin Schäper"
+date: "2026-02-24"
+categories: [RNA-seq, analysis, tutorial]
+image: "rnaseq-intro.jpg"
+page-layout: article
+toc: true
+toc-location: left
+---
+
+# Introduction
+
+In this first part of our RNA-seq analysis series we will cover important considerations for the actual RNA sequencing experiment that balance cost and data-quality and how the fastq files from a sequencing provider can be converted into a count matrix for downstream analysis.
+
+# Experimental Design
+
+When planning an RNA-seq experiment, there are several key factors to consider that can impact the quality and interpretability of the data:
+
+
+* **Read Length**: Longer reads can provide more information about transcript structure and can improve alignment accuracy, but they are also more expensive. Common read lengths for RNA-seq are 50-150 base pairs.
++ **Sequencing Depth**: The number of reads per sample can affect the ability to detect lowly expressed genes. A common recommendation is to aim for at least 20 million reads per sample, but a more systematic approach is to perform a statistical power analysis to estimate the probability of detecting a differential expression given an experimental design and research question (check out the tool [RNASeqPower](https://bioconductor.org/packages/release/bioc/html/RNASeqPower.html) on Bioconductor).
++ **Paired-end vs Single-end**: Paired-end sequencing provides information from both ends of the DNA fragments, which can improve alignment accuracy for longer transcripts and repetitive sequences. It also allows study of structural variations like deletions, insertions and inversions. However, it is more expensive than single-end sequencing. For merely quantifying gene expression, single-end reads are often sufficient.
+
+The best way to detect genuine effects in gene expression, is to have biological replicates (e.g. different timepoints, individuals or tissues).
+
+# Fastq to Count Matrix
+Fastq files contain raw sequencing reads that need to be processed and aligned to a reference genome to obtain a count matrix for gene expression analysis.
+This step usually follows a standard worflow that includes quality control, trimming, alignment, and quantification.
+Nonetheless there are many parameters that can be adjusted at each step, and the choice of tools can also impact the results.
+
+A go-to pipeline for RNA-seq data processing can be found on [nf-core](https://nf-co.re/rnaseq), which is an open-source project for standardized and reproducible bioinformatics pipelines.
+
+## Reference Genome and Annotation
+To quantify gene expression, we require the actual DNA sequence of the organism (reference genome) and a description of where genes, regulatory elements and other interesting segments are located on the genome (annotation).
+
+For the nf-core pipeline there are genomes and annotations available from a centralised resource called [iGenomes](https://support.illumina.com/sequencing/sequencing_software/igenome.html). Alternatively, one can obtain a local file from a genome repository like [Ensembl](https://www.ensembl.org/info/data/ftp/index.html).
+
+## What nf-core RNA-seq does (briefly)
+
+The nf-core RNA-seq pipeline performs the following steps:
+
+1. **Quality Control**: The pipeline uses tools like FastQC to assess the quality of the raw sequencing reads, providing metrics such as read quality scores, GC content, and adapter contamination.
+2. **Trimming**: If necessary, the pipeline can trim low-quality bases and adapter sequences from the reads using tools like Trim Galore.
+3. **Alignment**: The pipeline aligns the reads to the reference genome using aligners such as STAR or HISAT2, which can handle spliced reads and are optimized for RNA-seq data.
+4. **Quantification**: The pipeline quantifies gene expression levels by counting the number of reads that align to each gene using tools like featureCounts or Salmon, resulting in a count matrix that can be used for downstream analysis.
+
+## Running nf-core RNA-seq
+We load in our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix. The pipeline can be run on a local machine or on a high-performance computing cluster. The nf-core pipeline is built using Nextflow, which allows for easy parallelization and reproducibility.
+
+First we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:
+``` csv
+sample,fastq_1,fastq_2,strandedness
+sample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto
+sample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto
+```
+
+Finally, we can run the pipeline with the following command:
+``` bash
+# Install nf-core RNA-seq pipeline
+# This requires Nextflow to be installed on your system
+# Run the pipeline with the following command
+nextflow run nf-core/rnaseq \
+    --input samplesheet.csv \
+    --outdir output \
+    --genome GRCh38 \
+    -profile test,singularity \
+```
+
+## Understanding MultiQC
+After running the pipeline, we can use MultiQC to aggregate and visualize the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis.
+The most important metrics to look at in the MultiQC report are:
+
+* **Per base sequence quality**: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.
+* **Adapter content**: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.
+* **Alignment statistics**: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads.
+
+# Conclusion
+In this first part of our RNA-seq analysis series, we have covered the importance of experimental design and how to preprocess raw sequencing data using the nf-core RNA-seq pipeline. We have also discussed how to use MultiQC to assess the quality of our sequencing data. In the next part, we will dive into downstream analysis, including our own quality control, exploratory data analysis, differential expression analysis and functional enrichment analysis.

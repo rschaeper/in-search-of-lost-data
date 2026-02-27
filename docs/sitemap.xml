@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://in-search-of-lost-data.com/posts/post-with-code/index.html</loc>
-    <lastmod>2026-02-20T11:30:01.130Z</lastmod>
+    <lastmod>2026-02-23T10:19:16.774Z</lastmod>
   </url>
   <url>
     <loc>https://in-search-of-lost-data.com/index.html</loc>
@@ -10,10 +10,14 @@
   </url>
   <url>
     <loc>https://in-search-of-lost-data.com/about.html</loc>
-    <lastmod>2026-02-20T11:32:46.572Z</lastmod>
+    <lastmod>2026-02-25T10:23:33.715Z</lastmod>
   </url>
   <url>
     <loc>https://in-search-of-lost-data.com/posts/hello-bioinformatics/index.html</loc>
     <lastmod>2026-02-20T11:28:37.653Z</lastmod>
+  </url>
+  <url>
+    <loc>https://in-search-of-lost-data.com/posts/rnaseq-part-1/index.html</loc>
+    <lastmod>2026-02-26T11:38:03.417Z</lastmod>
   </url>
 </urlset>

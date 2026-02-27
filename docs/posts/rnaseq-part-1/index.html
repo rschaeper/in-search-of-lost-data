@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Robin Schäper">
-<meta name="dcterms.date" content="2026-02-20">
+<meta name="dcterms.date" content="2026-02-24">
 
-<title>Post With Code – In Search Of Lost Data</title>
+<title>RNA-Seq Analysis Part 1: Introduction and Data Preprocessing – In Search Of Lost Data</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -110,7 +110,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link rel="stylesheet" href="../../styles.css">
 </head>
 
-<body class="nav-fixed fullcontent quarto-light">
+<body class="floating nav-fixed quarto-light">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top quarto-banner">
@@ -132,7 +132,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span class="menu-text">About</span></a>
   </li>  
   <li class="nav-item compact">
-    <a class="nav-link" href="https://github.com/"> <i class="bi bi-github" role="img">
+    <a class="nav-link" href="https://github.com/rschaeper"> <i class="bi bi-github" role="img">
 </i> 
 <span class="menu-text"></span></a>
   </li>  
@@ -144,14 +144,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     </nav>
 </header>
 <!-- content -->
-<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+<header id="title-block-header" class="quarto-title-block default toc-left page-columns page-full">
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
-      <h1 class="title">Post With Code</h1>
+      <h1 class="title">RNA-Seq Analysis Part 1: Introduction and Data Preprocessing</h1>
                                 <div class="quarto-categories">
-                <div class="quarto-category">news</div>
-                <div class="quarto-category">code</div>
+                <div class="quarto-category">RNA-seq</div>
                 <div class="quarto-category">analysis</div>
+                <div class="quarto-category">tutorial</div>
               </div>
                   </div>
   </div>
@@ -169,7 +169,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
       <div>
       <div class="quarto-title-meta-heading">Published</div>
       <div class="quarto-title-meta-contents">
-        <p class="date">February 20, 2026</p>
+        <p class="date">February 24, 2026</p>
       </div>
     </div>
     
@@ -179,8 +179,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   
   </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#experimental-design" id="toc-experimental-design" class="nav-link" data-scroll-target="#experimental-design">Experimental Design</a></li>
+  <li><a href="#fastq-to-count-matrix" id="toc-fastq-to-count-matrix" class="nav-link" data-scroll-target="#fastq-to-count-matrix">Fastq to Count Matrix</a>
+  <ul class="collapse">
+  <li><a href="#reference-genome-and-annotation" id="toc-reference-genome-and-annotation" class="nav-link" data-scroll-target="#reference-genome-and-annotation">Reference Genome and Annotation</a></li>
+  <li><a href="#what-nf-core-rna-seq-does-briefly" id="toc-what-nf-core-rna-seq-does-briefly" class="nav-link" data-scroll-target="#what-nf-core-rna-seq-does-briefly">What nf-core RNA-seq does (briefly)</a></li>
+  <li><a href="#running-nf-core-rna-seq" id="toc-running-nf-core-rna-seq" class="nav-link" data-scroll-target="#running-nf-core-rna-seq">Running nf-core RNA-seq</a></li>
+  <li><a href="#understanding-multiqc" id="toc-understanding-multiqc" class="nav-link" data-scroll-target="#understanding-multiqc">Understanding MultiQC</a></li>
+  </ul></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+    </div>
 <!-- main -->
 <main class="content quarto-banner-title-block" id="quarto-document-content">
 
@@ -188,21 +208,72 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 
 
-<p>This is a post with executable <strong>code</strong>.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(cars)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>     speed           dist       
- Min.   : 4.0   Min.   :  2.00  
- 1st Qu.:12.0   1st Qu.: 26.00  
- Median :15.0   Median : 36.00  
- Mean   :15.4   Mean   : 42.98  
- 3rd Qu.:19.0   3rd Qu.: 56.00  
- Max.   :25.0   Max.   :120.00  </code></pre>
-</div>
-</div>
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>In this first part of our RNA-seq analysis series we will cover important considerations for the actual RNA sequencing experiment that balance cost and data-quality and how the fastq files from a sequencing provider can be converted into a count matrix for downstream analysis.</p>
+</section>
+<section id="experimental-design" class="level1">
+<h1>Experimental Design</h1>
+<p>When planning an RNA-seq experiment, there are several key factors to consider that can impact the quality and interpretability of the data:</p>
+<ul>
+<li><strong>Read Length</strong>: Longer reads can provide more information about transcript structure and can improve alignment accuracy, but they are also more expensive. Common read lengths for RNA-seq are 50-150 base pairs.</li>
+<li><strong>Sequencing Depth</strong>: The number of reads per sample can affect the ability to detect lowly expressed genes. A common recommendation is to aim for at least 20 million reads per sample, but a more systematic approach is to perform a statistical power analysis to estimate the probability of detecting a differential expression given an experimental design and research question (check out the tool <a href="https://bioconductor.org/packages/release/bioc/html/RNASeqPower.html">RNASeqPower</a> on Bioconductor).</li>
+<li><strong>Paired-end vs Single-end</strong>: Paired-end sequencing provides information from both ends of the DNA fragments, which can improve alignment accuracy for longer transcripts and repetitive sequences. It also allows study of structural variations like deletions, insertions and inversions. However, it is more expensive than single-end sequencing. For merely quantifying gene expression, single-end reads are often sufficient.</li>
+</ul>
+<p>The best way to detect genuine effects in gene expression, is to have biological replicates (e.g.&nbsp;different timepoints, individuals or tissues).</p>
+</section>
+<section id="fastq-to-count-matrix" class="level1">
+<h1>Fastq to Count Matrix</h1>
+<p>Fastq files contain raw sequencing reads that need to be processed and aligned to a reference genome to obtain a count matrix for gene expression analysis. This step usually follows a standard worflow that includes quality control, trimming, alignment, and quantification. Nonetheless there are many parameters that can be adjusted at each step, and the choice of tools can also impact the results.</p>
+<p>A go-to pipeline for RNA-seq data processing can be found on <a href="https://nf-co.re/rnaseq">nf-core</a>, which is an open-source project for standardized and reproducible bioinformatics pipelines.</p>
+<section id="reference-genome-and-annotation" class="level2">
+<h2 class="anchored" data-anchor-id="reference-genome-and-annotation">Reference Genome and Annotation</h2>
+<p>To quantify gene expression, we require the actual DNA sequence of the organism (reference genome) and a description of where genes, regulatory elements and other interesting segments are located on the genome (annotation).</p>
+<p>For the nf-core pipeline there are genomes and annotations available from a centralised resource called <a href="https://support.illumina.com/sequencing/sequencing_software/igenome.html">iGenomes</a>. Alternatively, one can obtain a local file from a genome repository like <a href="https://www.ensembl.org/info/data/ftp/index.html">Ensembl</a>.</p>
+</section>
+<section id="what-nf-core-rna-seq-does-briefly" class="level2">
+<h2 class="anchored" data-anchor-id="what-nf-core-rna-seq-does-briefly">What nf-core RNA-seq does (briefly)</h2>
+<p>The nf-core RNA-seq pipeline performs the following steps:</p>
+<ol type="1">
+<li><strong>Quality Control</strong>: The pipeline uses tools like FastQC to assess the quality of the raw sequencing reads, providing metrics such as read quality scores, GC content, and adapter contamination.</li>
+<li><strong>Trimming</strong>: If necessary, the pipeline can trim low-quality bases and adapter sequences from the reads using tools like Trim Galore.</li>
+<li><strong>Alignment</strong>: The pipeline aligns the reads to the reference genome using aligners such as STAR or HISAT2, which can handle spliced reads and are optimized for RNA-seq data.</li>
+<li><strong>Quantification</strong>: The pipeline quantifies gene expression levels by counting the number of reads that align to each gene using tools like featureCounts or Salmon, resulting in a count matrix that can be used for downstream analysis.</li>
+</ol>
+</section>
+<section id="running-nf-core-rna-seq" class="level2">
+<h2 class="anchored" data-anchor-id="running-nf-core-rna-seq">Running nf-core RNA-seq</h2>
+<p>We load in our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix. The pipeline can be run on a local machine or on a high-performance computing cluster. The nf-core pipeline is built using Nextflow, which allows for easy parallelization and reproducibility.</p>
+<p>First we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:</p>
+<pre class="csv"><code>sample,fastq_1,fastq_2,strandedness
+sample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto
+sample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto</code></pre>
+<p>Finally, we can run the pipeline with the following command:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install nf-core RNA-seq pipeline</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># This requires Nextflow to be installed on your system</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the pipeline with the following command</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">nextflow</span> run nf-core/rnaseq <span class="dt">\</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">--input</span> samplesheet.csv <span class="dt">\</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">--outdir</span> output <span class="dt">\</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--genome</span> GRCh38 <span class="dt">\</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">-profile</span> test,singularity <span class="dt">\</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="understanding-multiqc" class="level2">
+<h2 class="anchored" data-anchor-id="understanding-multiqc">Understanding MultiQC</h2>
+<p>After running the pipeline, we can use MultiQC to aggregate and visualize the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis. The most important metrics to look at in the MultiQC report are:</p>
+<ul>
+<li><strong>Per base sequence quality</strong>: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.</li>
+<li><strong>Adapter content</strong>: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.</li>
+<li><strong>Alignment statistics</strong>: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads.</li>
+</ul>
+</section>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>In this first part of our RNA-seq analysis series, we have covered the importance of experimental design and how to preprocess raw sequencing data using the nf-core RNA-seq pipeline. We have also discussed how to use MultiQC to assess the quality of our sequencing data. In the next part, we will dive into downstream analysis, including our own quality control, exploratory data analysis, differential expression analysis and functional enrichment analysis.</p>
 
 
+</section>
 
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">

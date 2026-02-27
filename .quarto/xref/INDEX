@@ -13,5 +13,8 @@
   },
   "posts/hello-bioinformatics/index.qmd": {
     "index.html": "a2843d3c"
+  },
+  "posts/rnaseq-part-1/index.qmd": {
+    "index.html": "d580100c"
   }
 }
