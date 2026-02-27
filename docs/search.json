@@ -1,10 +1,38 @@
 [
   {
-    "objectID": "posts/post-with-code/index.html",
-    "href": "posts/post-with-code/index.html",
-    "title": "Post With Code",
+    "objectID": "posts/rnaseq-part-1/index.html",
+    "href": "posts/rnaseq-part-1/index.html",
+    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
     "section": "",
-    "text": "This is a post with executable code.\n\nsummary(cars)\n\n     speed           dist       \n Min.   : 4.0   Min.   :  2.00  \n 1st Qu.:12.0   1st Qu.: 26.00  \n Median :15.0   Median : 36.00  \n Mean   :15.4   Mean   : 42.98  \n 3rd Qu.:19.0   3rd Qu.: 56.00  \n Max.   :25.0   Max.   :120.00"
+    "text": "In this first part of our RNA-seq analysis series we will cover important considerations for the actual RNA sequencing experiment that balance cost and data-quality and how the fastq files from a sequencing provider can be converted into a count matrix for downstream analysis."
+  },
+  {
+    "objectID": "posts/rnaseq-part-1/index.html#reference-genome-and-annotation",
+    "href": "posts/rnaseq-part-1/index.html#reference-genome-and-annotation",
+    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
+    "section": "Reference Genome and Annotation",
+    "text": "Reference Genome and Annotation\nTo quantify gene expression, we require the actual DNA sequence of the organism (reference genome) and a description of where genes, regulatory elements and other interesting segments are located on the genome (annotation).\nFor the nf-core pipeline there are genomes and annotations available from a centralised resource called iGenomes. Alternatively, one can obtain a local file from a genome repository like Ensembl."
+  },
+  {
+    "objectID": "posts/rnaseq-part-1/index.html#what-nf-core-rna-seq-does-briefly",
+    "href": "posts/rnaseq-part-1/index.html#what-nf-core-rna-seq-does-briefly",
+    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
+    "section": "What nf-core RNA-seq does (briefly)",
+    "text": "What nf-core RNA-seq does (briefly)\nThe nf-core RNA-seq pipeline performs the following steps:\n\nQuality Control: The pipeline uses tools like FastQC to assess the quality of the raw sequencing reads, providing metrics such as read quality scores, GC content, and adapter contamination.\nTrimming: If necessary, the pipeline can trim low-quality bases and adapter sequences from the reads using tools like Trim Galore.\nAlignment: The pipeline aligns the reads to the reference genome using aligners such as STAR or HISAT2, which can handle spliced reads and are optimized for RNA-seq data.\nQuantification: The pipeline quantifies gene expression levels by counting the number of reads that align to each gene using tools like featureCounts or Salmon, resulting in a count matrix that can be used for downstream analysis."
+  },
+  {
+    "objectID": "posts/rnaseq-part-1/index.html#running-nf-core-rna-seq",
+    "href": "posts/rnaseq-part-1/index.html#running-nf-core-rna-seq",
+    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
+    "section": "Running nf-core RNA-seq",
+    "text": "Running nf-core RNA-seq\nWe load in our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix. The pipeline can be run on a local machine or on a high-performance computing cluster. The nf-core pipeline is built using Nextflow, which allows for easy parallelization and reproducibility.\nFirst we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:\nsample,fastq_1,fastq_2,strandedness\nsample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto\nsample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto\nFinally, we can run the pipeline with the following command:\n# Install nf-core RNA-seq pipeline\n# This requires Nextflow to be installed on your system\n# Run the pipeline with the following command\nnextflow run nf-core/rnaseq \\\n    --input samplesheet.csv \\\n    --outdir output \\\n    --genome GRCh38 \\\n    -profile test,singularity \\"
+  },
+  {
+    "objectID": "posts/rnaseq-part-1/index.html#understanding-multiqc",
+    "href": "posts/rnaseq-part-1/index.html#understanding-multiqc",
+    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
+    "section": "Understanding MultiQC",
+    "text": "Understanding MultiQC\nAfter running the pipeline, we can use MultiQC to aggregate and visualize the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis. The most important metrics to look at in the MultiQC report are:\n\nPer base sequence quality: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.\nAdapter content: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.\nAlignment statistics: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads."
   },
   {
     "objectID": "index.html",
@@ -26,47 +54,5 @@
     "title": "Hello Bioinformatics",
     "section": "",
     "text": "This is the first post in a Quarto blog. Welcome!\n\nSince this post doesn’t specify an explicit image, the first image in the post will be used in the listing page of posts."
-  },
-  {
-    "objectID": "posts/rnaseq-part-1/index.html",
-    "href": "posts/rnaseq-part-1/index.html",
-    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
-    "section": "",
-    "text": "In this first part of our RNA-seq analysis series we will cover important considerations for the actual RNA sequencing experiment that balance cost and data-quality and how the fastq files from a sequencing provider can be converted into a count matrix for downstream analysis."
-  },
-  {
-    "objectID": "posts/rnaseq-part-1/index.html#understanding-multiqc",
-    "href": "posts/rnaseq-part-1/index.html#understanding-multiqc",
-    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
-    "section": "Understanding MultiQC",
-    "text": "Understanding MultiQC\nAfter running the pipeline, we can use MultiQC to aggregate and visualize the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis. The most important metrics to look at in the MultiQC report are:\n\nPer base sequence quality: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.\nAdapter content: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.\nAlignment statistics: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads."
-  },
-  {
-    "objectID": "posts/rnaseq-part-1/index.html#reference-genome-and-annotation",
-    "href": "posts/rnaseq-part-1/index.html#reference-genome-and-annotation",
-    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
-    "section": "Reference Genome and Annotation",
-    "text": "Reference Genome and Annotation\nTo quantify gene expression, we require the actual DNA sequence of the organism (reference genome) and a description of where genes, regulatory elements and other interesting segments are located on the genome (annotation).\nFor the nf-core pipeline there are genomes and annotations available from a centralised resource called iGenomes. Alternatively, one can obtain a local file from a genome repository like Ensembl."
-  },
-  {
-    "objectID": "posts/rnaseq-part-1/index.html#running-nf-core-rna-seq",
-    "href": "posts/rnaseq-part-1/index.html#running-nf-core-rna-seq",
-    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
-    "section": "Running nf-core RNA-seq",
-    "text": "Running nf-core RNA-seq\nWe load in our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix. The pipeline can be run on a local machine or on a high-performance computing cluster. The nf-core pipeline is built using Nextflow, which allows for easy parallelization and reproducibility.\nFirst we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:\nsample,fastq_1,fastq_2,strandedness\nsample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto\nsample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto\nFinally, we can run the pipeline with the following command:\n# Install nf-core RNA-seq pipeline\n# This requires Nextflow to be installed on your system\n# Run the pipeline with the following command\nnextflow run nf-core/rnaseq \\\n    --input samplesheet.csv \\\n    --outdir output \\\n    --genome GRCh38 \\\n    -profile test,singularity \\"
-  },
-  {
-    "objectID": "posts/rnaseq-part-1/index.html#what-nf-core-rna-seq-does",
-    "href": "posts/rnaseq-part-1/index.html#what-nf-core-rna-seq-does",
-    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
-    "section": "What nf-core RNA-seq does",
-    "text": "What nf-core RNA-seq does\nThe nf-core RNA-seq pipeline performs the following steps: 1. Quality Control: The pipeline uses tools like FastQC to assess the quality of the raw sequencing reads, providing metrics such as read quality scores, GC content, and adapter contamination. 2. Trimming: If necessary, the pipeline can trim low-quality bases and adapter sequences from the reads using tools like Trim Galore. 3. Alignment: The pipeline aligns the reads to the reference genome using aligners such as STAR or HISAT2, which can handle spliced reads and are optimized for RNA-seq data. 4. Quantification: The pipeline quantifies gene expression levels by counting the number of reads that align to each gene using tools like featureCounts or Salmon, resulting in a count matrix that can be used for downstream analysis."
-  },
-  {
-    "objectID": "posts/rnaseq-part-1/index.html#what-nf-core-rna-seq-does-briefly",
-    "href": "posts/rnaseq-part-1/index.html#what-nf-core-rna-seq-does-briefly",
-    "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
-    "section": "What nf-core RNA-seq does (briefly)",
-    "text": "What nf-core RNA-seq does (briefly)\nThe nf-core RNA-seq pipeline performs the following steps:\n\nQuality Control: The pipeline uses tools like FastQC to assess the quality of the raw sequencing reads, providing metrics such as read quality scores, GC content, and adapter contamination.\nTrimming: If necessary, the pipeline can trim low-quality bases and adapter sequences from the reads using tools like Trim Galore.\nAlignment: The pipeline aligns the reads to the reference genome using aligners such as STAR or HISAT2, which can handle spliced reads and are optimized for RNA-seq data.\nQuantification: The pipeline quantifies gene expression levels by counting the number of reads that align to each gene using tools like featureCounts or Salmon, resulting in a count matrix that can be used for downstream analysis."
   }
 ]
