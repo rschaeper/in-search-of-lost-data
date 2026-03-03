@@ -116,26 +116,5 @@ font-style: inherit;">\</span></span></code></pre></div></div>
   <pubDate>Mon, 23 Feb 2026 23:00:00 GMT</pubDate>
   <media:content url="https://in-search-of-lost-data.com/posts/rnaseq-part-1/rnaseq-intro.jpg" medium="image" type="image/jpeg"/>
 </item>
-<item>
-  <title>Hello Bioinformatics</title>
-  <dc:creator>Robin Schäper</dc:creator>
-  <link>https://in-search-of-lost-data.com/posts/hello-bioinformatics/</link>
-  <description><![CDATA[ 
-
-
-
-
-
-<p>This is the first post in a Quarto blog. Welcome!</p>
-<p><img src="https://in-search-of-lost-data.com/posts/hello-bioinformatics/thumbnail.jpg" class="img-fluid"></p>
-<p>Since this post doesn’t specify an explicit <code>image</code>, the first image in the post will be used in the listing page of posts.</p>
-
-
-
- ]]></description>
-  <category>news</category>
-  <guid>https://in-search-of-lost-data.com/posts/hello-bioinformatics/</guid>
-  <pubDate>Mon, 16 Feb 2026 23:00:00 GMT</pubDate>
-</item>
 </channel>
 </rss>

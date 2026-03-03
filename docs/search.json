@@ -25,21 +25,14 @@
     "href": "posts/rnaseq-part-1/index.html#running-nf-core-rna-seq",
     "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
     "section": "Running nf-core RNA-seq",
-    "text": "Running nf-core RNA-seq\nIn this step we load our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix.\nThe magic of nf-core pipelines lies the fact, that they are built using Nextflow, which allows the smooth execution of multiple software tools. Imagine having to set up each tool individually, ensuring compatibility and proper configuration! All these tools are conviniently wrapped into containers (e.g. Docker or Singularity), which ensures that the pipeline can be run on any system without worrying about software dependencies.\nFirst we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:\nsample,fastq_1,fastq_2,strandedness\nsample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto\nsample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto\nWe need to install nextflow on our system (described here). Nextflow will automatically fetch the nf-core RNA-seq pipeline from github, so there is not need to install it manually.\nFinally, we can run the pipeline with the following command:\nnextflow run nf-core/rnaseq \\\n    --input samplesheet.csv \\\n    --outdir outdir \\\n    --genome GRCh38 \\\n    -profile docker \\\nOne can also create a custom configuration file to specify computation resources (e.g. number of threads, memory) for each step of the pipeline, which is especially useful when running on a cluster or cloud environment with limited resources. Details on this can be found here: nf-core/rnaseq/usage#custom-configuration."
+    "text": "Running nf-core RNA-seq\nIn this step we load our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix.\nThe magic of nf-core pipelines lies the fact, that they are built using Nextflow, which allows the smooth execution of multiple software tools. Imagine having to set up each tool individually, ensuring compatibility and proper configuration! All these tools are conviniently wrapped into containers (e.g. Docker or Singularity), which ensures that the pipeline can be run on any system without worrying about software dependencies.\nFirst we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:\nsample,fastq_1,fastq_2,strandedness\nsample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto\nsample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto\nWe need to install nextflow on our system (described here). Nextflow will automatically fetch the nf-core RNA-seq pipeline from github, so there is not need to install it manually.\nFinally, we can run the pipeline with the following command:\nnextflow run nf-core/rnaseq \\\n    --input samplesheet.csv \\\n    --outdir outdir \\\n    --genome GRCh38 \\\n    -profile docker \\\nOne can also create a custom configuration file to specify computation resources (e.g. number of threads, memory) for each step of the pipeline, which is especially useful when running on a cluster or cloud environment with limited resources. Details on this can be found here."
   },
   {
     "objectID": "posts/rnaseq-part-1/index.html#understanding-multiqc",
     "href": "posts/rnaseq-part-1/index.html#understanding-multiqc",
     "title": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing",
     "section": "Understanding MultiQC",
-    "text": "Understanding MultiQC\nAfter running the pipeline, we can use MultiQC to aggregate and visualize the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis. The most important metrics to look at in the MultiQC report are:\n\nPer base sequence quality: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.\nAdapter content: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.\nAlignment statistics: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads."
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "In Search Of Lost Data",
-    "section": "",
-    "text": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing\n\n\n\nRNA-seq\n\nanalysis\n\ntutorial\n\n\n\n\n\n\n\n\n\nFeb 24, 2026\n\n\nRobin Schäper\n\n\n\n\n\n\n\n\n\n\n\n\nHello Bioinformatics\n\n\n\nnews\n\n\n\n\n\n\n\n\n\nFeb 17, 2026\n\n\nRobin Schäper\n\n\n\n\n\nNo matching items"
+    "text": "Understanding MultiQC\nOne of the key quality control outputs from the pipeline is an html report called “MultiQC”. MultiQC aggregates and visualizes the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis. The most important metrics to look at in the MultiQC report are:\n\nPer base sequence quality: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.\nAdapter content: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.\nAlignment statistics: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads."
   },
   {
     "objectID": "about.html",
@@ -49,10 +42,10 @@
     "text": "Bioinformatics lessons learned and things that excite me."
   },
   {
-    "objectID": "posts/hello-bioinformatics/index.html",
-    "href": "posts/hello-bioinformatics/index.html",
-    "title": "Hello Bioinformatics",
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "In Search Of Lost Data",
     "section": "",
-    "text": "This is the first post in a Quarto blog. Welcome!\n\nSince this post doesn’t specify an explicit image, the first image in the post will be used in the listing page of posts."
+    "text": "RNA-Seq Analysis Part 1: Introduction and Data Preprocessing\n\n\n\nRNA-seq\n\nanalysis\n\ntutorial\n\n\n\n\n\n\n\n\n\nFeb 24, 2026\n\n\nRobin Schäper\n\n\n\n\n\nNo matching items"
   }
 ]

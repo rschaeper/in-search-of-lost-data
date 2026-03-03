@@ -2,8 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
-      "/posts/rnaseq-part-1/index.html",
-      "/posts/hello-bioinformatics/index.html"
+      "/posts/rnaseq-part-1/index.html"
     ]
   }
 ]
