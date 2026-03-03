@@ -243,20 +243,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="running-nf-core-rna-seq" class="level2">
 <h2 class="anchored" data-anchor-id="running-nf-core-rna-seq">Running nf-core RNA-seq</h2>
-<p>We load in our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix. The pipeline can be run on a local machine or on a high-performance computing cluster. The nf-core pipeline is built using Nextflow, which allows for easy parallelization and reproducibility.</p>
+<p>In this step we load our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix.</p>
+<p>The magic of nf-core pipelines lies the fact, that they are built using Nextflow, which allows the smooth execution of multiple software tools. Imagine having to set up each tool individually, ensuring compatibility and proper configuration! All these tools are conviniently wrapped into containers (e.g.&nbsp;Docker or Singularity), which ensures that the pipeline can be run on any system without worrying about software dependencies.</p>
 <p>First we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:</p>
 <pre class="csv"><code>sample,fastq_1,fastq_2,strandedness
 sample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto
 sample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto</code></pre>
+<p>We need to install nextflow on our system (described <a href="https://www.nextflow.io/docs/latest/install.html#installation">here</a>). Nextflow will automatically fetch the nf-core RNA-seq pipeline from github, so there is not need to install it manually.</p>
 <p>Finally, we can run the pipeline with the following command:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install nf-core RNA-seq pipeline</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># This requires Nextflow to be installed on your system</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the pipeline with the following command</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="ex">nextflow</span> run nf-core/rnaseq <span class="dt">\</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">--input</span> samplesheet.csv <span class="dt">\</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">--outdir</span> output <span class="dt">\</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--genome</span> GRCh38 <span class="dt">\</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">-profile</span> test,singularity <span class="dt">\</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">nextflow</span> run nf-core/rnaseq <span class="dt">\</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--input</span> samplesheet.csv <span class="dt">\</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--outdir</span> outdir <span class="dt">\</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--genome</span> GRCh38 <span class="dt">\</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">-profile</span> docker <span class="dt">\</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>One can also create a custom configuration file to specify computation resources (e.g.&nbsp;number of threads, memory) for each step of the pipeline, which is especially useful when running on a cluster or cloud environment with limited resources. Details on this can be found here: <a href="https://nf-co.re/rnaseq/usage#custom-configuration">nf-core/rnaseq/usage#custom-configuration</a>.</p>
 </section>
 <section id="understanding-multiqc" class="level2">
 <h2 class="anchored" data-anchor-id="understanding-multiqc">Understanding MultiQC</h2>

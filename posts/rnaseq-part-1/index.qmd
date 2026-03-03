@@ -46,7 +46,10 @@ The nf-core RNA-seq pipeline performs the following steps:
 4. **Quantification**: The pipeline quantifies gene expression levels by counting the number of reads that align to each gene using tools like featureCounts or Salmon, resulting in a count matrix that can be used for downstream analysis.
 
 ## Running nf-core RNA-seq
-We load in our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix. The pipeline can be run on a local machine or on a high-performance computing cluster. The nf-core pipeline is built using Nextflow, which allows for easy parallelization and reproducibility.
+In this step we load our fastq files and reference genome into the nf-core RNA-seq pipeline, which will perform all necessary steps to generate a count matrix.
+
+The magic of nf-core pipelines lies the fact, that they are built using Nextflow, which allows the smooth execution of multiple software tools. Imagine having to set up each tool individually, ensuring compatibility and proper configuration!
+All these tools are conviniently wrapped into containers (e.g. Docker or Singularity), which ensures that the pipeline can be run on any system without worrying about software dependencies.
 
 First we define a sample sheet (samplesheet.csv) that contains the paths to our fastq files and the corresponding sample information. The sample sheet should have the following format:
 ``` csv
@@ -55,20 +58,22 @@ sample1,/path/to/sample1_R1.fastq.gz,/path/to/sample1_R2.fastq.gz,auto
 sample2,/path/to/sample2_R1.fastq.gz,/path/to/sample2_R2.fastq.gz,auto
 ```
 
+We need to install nextflow on our system (described [here](https://www.nextflow.io/docs/latest/install.html#installation)).
+Nextflow will automatically fetch the nf-core RNA-seq pipeline from github, so there is not need to install it manually.
+
 Finally, we can run the pipeline with the following command:
 ``` bash
-# Install nf-core RNA-seq pipeline
-# This requires Nextflow to be installed on your system
-# Run the pipeline with the following command
 nextflow run nf-core/rnaseq \
     --input samplesheet.csv \
-    --outdir output \
+    --outdir outdir \
     --genome GRCh38 \
-    -profile test,singularity \
+    -profile docker \
 ```
 
+One can also create a custom configuration file to specify computation resources (e.g. number of threads, memory) for each step of the pipeline, which is especially useful when running on a cluster or cloud environment with limited resources. Details on this can be found [here](https://nf-co.re/rnaseq/usage#custom-configuration).
+
 ## Understanding MultiQC
-After running the pipeline, we can use MultiQC to aggregate and visualize the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis.
+One of the key quality control outputs from the pipeline is an html report called "MultiQC". MultiQC aggregates and visualizes the quality control metrics from all samples in a single report. MultiQC provides an overview of the quality of the sequencing data, including read quality scores, adapter content, and alignment statistics. This allows us to quickly identify any issues with the data and make informed decisions about downstream analysis.
 The most important metrics to look at in the MultiQC report are:
 
 * **Per base sequence quality**: This plot shows the quality scores for each base position across all reads. A high-quality dataset should have most bases with a quality score above 30.
