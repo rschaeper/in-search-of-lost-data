@@ -10,7 +10,937 @@
 <atom:link href="https://in-search-of-lost-data.com/index.xml" rel="self" type="application/rss+xml"/>
 <description>A blog built with Quarto</description>
 <generator>quarto-1.8.27</generator>
-<lastBuildDate>Mon, 23 Feb 2026 23:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 17 Mar 2026 23:00:00 GMT</lastBuildDate>
+<item>
+  <title>RNA-Seq Analysis Part 2: Loading Data and Quality Control</title>
+  <dc:creator>Robin Schäper</dc:creator>
+  <link>https://in-search-of-lost-data.com/posts/rnaseq-part-2/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>In this second part of our RNA-seq analysis series we will dive deeper into quality control, how to check basic assumptions about our data, detect potential outliers using principal component analysis and hierarchical clustering of Euclidean distances. We will also discuss how to correct for batch effects, which are technical variations that can arise from differences in sample processing, sequencing runs, or other factors that are not related to the biological conditions being studied. For this example we will use a count matrix from a diabetes study (bulk-RNAseq, whole blood). Depending on the available metadata, we can compare different tissues, individuals or treatment groups to each other, and the same methods can be applied to other types of omics data (e.g.&nbsp;proteomics, metabolomics, etc.).</p>
+</section>
+<section id="loading-the-count-matrix-and-metadata" class="level1">
+<h1>Loading the count matrix and metadata</h1>
+<p>First we download the count matrix and load it into R, and then we load the metadata using the GEOquery package. The count matrix is a tab-delimited file with gene names as row names and sample names as column names, while the metadata contains information about the samples, such as treatment group.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#load necessary libraries</span></span>
+<span id="cb1-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(here) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># for file paths</span></span>
+<span id="cb1-3"></span>
+<span id="cb1-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Downloading the count matrix</span></span>
+<span id="cb1-5">url <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE123658&amp;format=file&amp;file=GSE123658%5Fread%5Fcounts%2Egene%5Flevel%2Etxt%2Egz"</span></span>
+<span id="cb1-6"></span>
+<span id="cb1-7">dest <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">here</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"data"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"rnaseq"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GSE123658_counts.tsv.gz"</span>)</span>
+<span id="cb1-8"></span>
+<span id="cb1-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">download.file</span>(url, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">destfile =</span> dest)</span>
+<span id="cb1-10"></span>
+<span id="cb1-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Loading the count matrix</span></span>
+<span id="cb1-12">counts <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">read.delim</span>(dest, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">row.names =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span>)</span>
+<span id="cb1-13"></span>
+<span id="cb1-14"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dim</span>(counts)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 16785    82</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(counts[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>])</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                X0131 X0341 X04b3 X0865 X08d3
+ENSG00000237683  3267 10391  1822  5399 15902
+ENSG00000269831     1     5     3     1     1
+ENSG00000187634     0     0     0     0     0
+ENSG00000188976  1397  3683   969  2215  6043
+ENSG00000187961   250   869   226   490  1330
+ENSG00000187583     9    40     9    36    70</code></pre>
+</div>
+</div>
+<p>Let’s remove the “X” prefix from the column names of the count matrix, which is added by R when the column names start with a number (e.g.&nbsp;“1”, “2”, etc.). This will make it easier to match the column names with the sample names in the metadata.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">colnames</span>(counts) <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sub</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"^X"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">colnames</span>(counts))</span>
+<span id="cb5-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">head</span>(counts[, <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>])</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                0131  0341 04b3 0865  08d3
+ENSG00000237683 3267 10391 1822 5399 15902
+ENSG00000269831    1     5    3    1     1
+ENSG00000187634    0     0    0    0     0
+ENSG00000188976 1397  3683  969 2215  6043
+ENSG00000187961  250   869  226  490  1330
+ENSG00000187583    9    40    9   36    70</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Loading the metadata</span></span>
+<span id="cb7-2"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(GEOquery) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># for loading data from GEO</span></span>
+<span id="cb7-3"></span>
+<span id="cb7-4">gse <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">getGEO</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GSE123658"</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">GSEMatrix =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb7-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">length</span>(gse)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 2</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">names</span>(gse)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "GSE123658-GPL18573_series_matrix.txt.gz"
+[2] "GSE123658-GPL20301_series_matrix.txt.gz"</code></pre>
+</div>
+</div>
+<p>The authors of the study have sequenced samples using two different illumina platforms, this presents a great opportunity to discuss batch effects! Let’s finish loading the data and then we will check for batch effects in the next section.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1">eset_nextseq <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> gse[[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GSE123658-GPL18573_series_matrix.txt.gz"</span>]]</span>
+<span id="cb11-2"></span>
+<span id="cb11-3">eset_hiseq <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> gse[[<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GSE123658-GPL20301_series_matrix.txt.gz"</span>]]</span>
+<span id="cb11-4"></span>
+<span id="cb11-5">meta <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rbind</span>(</span>
+<span id="cb11-6">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pData</span>(eset_nextseq),</span>
+<span id="cb11-7">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pData</span>(eset_hiseq)</span>
+<span id="cb11-8">)</span>
+<span id="cb11-9">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>title[<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">5</span>]</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "healthy subject ID:1790" "healthy subject ID:471e"
+[3] "healthy subject ID:4d4e" "healthy subject ID:50e8"
+[5] "healthy subject ID:7f1a"</code></pre>
+</div>
+</div>
+<p>Notice that the sample id and condition are embedded in the title column of the metadata, so we will need to extract them for downstream analysis.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>sample_id <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sub</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">".*ID:"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">""</span>, meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>title)</span>
+<span id="cb13-2">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>sample_id <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">trimws</span>(meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>sample_id)</span>
+<span id="cb13-3"></span>
+<span id="cb13-4"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># set row names of metadata to sample_id</span></span>
+<span id="cb13-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(meta) <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>sample_id</span>
+<span id="cb13-6"></span>
+<span id="cb13-7"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># define factor condition based on the title column</span></span>
+<span id="cb13-8">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>condition <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ifelse</span>(</span>
+<span id="cb13-9">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grepl</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"healthy"</span>, meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>title, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">ignore.case =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>),</span>
+<span id="cb13-10">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"control"</span>,</span>
+<span id="cb13-11">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"disease"</span></span>
+<span id="cb13-12">)</span>
+<span id="cb13-13"></span>
+<span id="cb13-14">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>condition <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>condition, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"control"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"disease"</span>))</span>
+<span id="cb13-15"></span>
+<span id="cb13-16"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">table</span>(meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>condition)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+control disease 
+     43      39 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># define factor platform based on the platform_id column</span></span>
+<span id="cb15-2">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>platform <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">ifelse</span>(</span>
+<span id="cb15-3">    <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">grepl</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"GPL18573"</span>, meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>platform_id),</span>
+<span id="cb15-4">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NextSeq"</span>,</span>
+<span id="cb15-5">    <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"HiSeq"</span></span>
+<span id="cb15-6">)</span>
+<span id="cb15-7"></span>
+<span id="cb15-8">meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>platform <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">factor</span>(meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>platform, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">levels =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"NextSeq"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"HiSeq"</span>))</span>
+<span id="cb15-9"></span>
+<span id="cb15-10"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">table</span>(meta<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>platform)</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+NextSeq   HiSeq 
+     47      35 </code></pre>
+</div>
+</div>
+<p>Now let’s align the count matrix and metadata to ensure that the samples are in the same order.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Aligning the count matrix and metadata</span></span>
+<span id="cb17-2">meta <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> meta[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">match</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">colnames</span>(counts), <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(meta)), ]</span>
+<span id="cb17-3"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">all</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">colnames</span>(counts) <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">==</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(meta))</span></code></pre></div></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] TRUE</code></pre>
+</div>
+</div>
+<p>One more thing: Right now our count matrix contains gene names as row names, but for downstream analysis with DESeq2 we will need to have Ensembl gene IDs as row names. We can use the biomaRt package to convert gene names to Ensembl gene IDs.</p>
+<p>Now we create a mapping between Ensembl gene IDs and gene symbols using the biomaRt package, which will allow us to annotate our count matrix with gene symbols for easier interpretation of the results. We will add this as row data to our DESeqDataSet object later on. The reason we keep the Ensembl gene IDs as row names is that they are more stable and less ambiguous than gene symbols, which can sometimes be duplicated or change over time.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(biomaRt) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># for gene annotation</span></span>
+<span id="cb19-2"></span>
+<span id="cb19-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Create a mapping between Ensembl gene IDs and gene symbols</span></span>
+<span id="cb19-4">ensembl <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">useMart</span>(</span>
+<span id="cb19-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">biomart =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ENSEMBL_MART_ENSEMBL"</span>,</span>
+<span id="cb19-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">dataset =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hsapiens_gene_ensembl"</span>,</span>
+<span id="cb19-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">host =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"https://www.ensembl.org"</span></span>
+<span id="cb19-8">)</span>
+<span id="cb19-9">genes <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(counts)</span>
+<span id="cb19-10">mapping <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">getBM</span>(</span>
+<span id="cb19-11">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">attributes =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ensembl_gene_id"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"hgnc_symbol"</span>),</span>
+<span id="cb19-12">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">filters =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"ensembl_gene_id"</span>,</span>
+<span id="cb19-13">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">values =</span> genes,</span>
+<span id="cb19-14">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">mart =</span> ensembl</span>
+<span id="cb19-15">)</span>
+<span id="cb19-16"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Create a named vector for mapping Ensembl gene IDs to gene symbols</span></span>
+<span id="cb19-17">gene_symbols <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">setNames</span>(mapping<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>hgnc_symbol, mapping<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>ensembl_gene_id)</span></code></pre></div></div>
+</div>
+<p>Now we can create the so-called DESeqDataSet object, which is a container for the count matrix and metadata that is used for downstream analysis with the DESeq2 package. This object will allow us to perform various quality control checks and normalization steps before we proceed with differential expression analysis. We will use the “platform” and “condition” columns from the metadata as covariates in our design formula, which will allow us to account for potential batch effects and biological variation in our analysis.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(DESeq2) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># for RNA-seq analysis</span></span>
+<span id="cb20-2">dds <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">DESeqDataSetFromMatrix</span>(</span>
+<span id="cb20-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">countData =</span> counts,</span>
+<span id="cb20-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colData =</span> meta,</span>
+<span id="cb20-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">design =</span> <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">~</span> platform <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">+</span> condition</span>
+<span id="cb20-6">)</span>
+<span id="cb20-7"></span>
+<span id="cb20-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rowData</span>(dds)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>symbol <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> gene_symbols[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(dds)]</span></code></pre></div></div>
+</div>
+<p>For visualization purposes, we will perform a variance stabilizing transformation (VST) on the count data, which will help to stabilize the variance across different levels of expression and make it easier to visualize the data.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1">vsd <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">vst</span>(dds, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">blind =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>)</span>
+<span id="cb21-2">mat <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">assay</span>(vsd)</span></code></pre></div></div>
+</div>
+</section>
+<section id="pca" class="level1">
+<h1>PCA</h1>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(PCAtools) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># for PCA visualization</span></span>
+<span id="cb22-2"></span>
+<span id="cb22-3">p <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pca</span>(mat, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">metadata =</span> meta, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">removeVar =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.1</span>)</span>
+<span id="cb22-4"></span>
+<span id="cb22-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># set the row names of loadings to the gene symbols</span></span>
+<span id="cb22-6"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Get symbols</span></span>
+<span id="cb22-7">symbols <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rowData</span>(dds)<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>symbol</span>
+<span id="cb22-8"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">names</span>(symbols) <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(dds)  <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ENSG IDs as names</span></span>
+<span id="cb22-9">matched_symbols <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> symbols[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(p<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>loadings)]</span>
+<span id="cb22-10">matched_symbols[<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">is.na</span>(matched_symbols)] <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(p<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>loadings)</span>
+<span id="cb22-11"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># ensure uniqueness</span></span>
+<span id="cb22-12">labels <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">make.unique</span>(matched_symbols)</span>
+<span id="cb22-13"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">rownames</span>(p<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">$</span>loadings) <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> labels</span>
+<span id="cb22-14"></span>
+<span id="cb22-15"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">biplot</span>(p,</span>
+<span id="cb22-16"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colby =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"platform"</span>,</span>
+<span id="cb22-17"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"condition"</span>,</span>
+<span id="cb22-18"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lab =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb22-19"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legendPosition =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://in-search-of-lost-data.com/posts/rnaseq-part-2/index_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We observe that a subset of disease samples are separated from the control samples along the first principal component and no distinction between the two platforms is visible at first glance.</p>
+<p>Let’s skim the data with a pairs plot to see if any principal component is correlated with the platform, which would indicate a batch effect.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pairsplot</span>(p,</span>
+<span id="cb23-2">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">components =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">getComponents</span>(p, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">1</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">:</span><span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">10</span>)),</span>
+<span id="cb23-3">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">triangle =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">trianglelabSize =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">12</span>,</span>
+<span id="cb23-4">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">hline =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">vline =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0</span>,</span>
+<span id="cb23-5">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">pointSize =</span> <span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.4</span>,</span>
+<span id="cb23-6">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">gridlines.major =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">gridlines.minor =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>,</span>
+<span id="cb23-7">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colby =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'platform'</span>,</span>
+<span id="cb23-8">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">title =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'Pairs plot'</span>, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">plotaxes =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">FALSE</span>,</span>
+<span id="cb23-9">    <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">margingaps =</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">unit</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>, <span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">-</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">0.01</span>), <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'cm'</span>))</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://in-search-of-lost-data.com/posts/rnaseq-part-2/index_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Principal components (PC) 4 and 6 seem to be correlated with the platform, which suggests that there may be a batch effect present in the data. We are also curious what PC5 is about.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">biplot</span>(p,</span>
+<span id="cb24-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PC4"</span>,</span>
+<span id="cb24-3"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PC6"</span>,</span>
+<span id="cb24-4"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">showLoadings =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>,</span>
+<span id="cb24-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colby =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"platform"</span>,</span>
+<span id="cb24-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"condition"</span>,</span>
+<span id="cb24-7"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">lab =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">NULL</span>,</span>
+<span id="cb24-8"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legendPosition =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#</span></span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://in-search-of-lost-data.com/posts/rnaseq-part-2/index_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>To obtain accurate results in downstream analysis we could either remove the batch effect using a method like ComBat or include the platform as a covariate in our design formula when performing differential expression analysis with DESeq2. In this case, we have already included the platform as a covariate in our design formula, which should help to account for any potential batch effects in our analysis.</p>
+<p>What about PC5?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">biplot</span>(p,</span>
+<span id="cb25-2"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">x =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PC1"</span>,</span>
+<span id="cb25-3"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">y =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"PC5"</span>,</span>
+<span id="cb25-4"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">showLoadings =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>,</span>
+<span id="cb25-5"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">colby =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"platform"</span>,</span>
+<span id="cb25-6"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">shape =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"condition"</span>,</span>
+<span id="cb25-7"><span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">legendPosition =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"top"</span>)</span></code></pre></div></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://in-search-of-lost-data.com/posts/rnaseq-part-2/index_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>NKX3-1 is a transcription factor that is known to be involved in prostate development and has been implicated in prostate cancer. It could be that this PC captures a biological extreme related to a prostate condition, or just a technical artifact. We will further investigate this with the Euclidean distance matrix and hierarchical clustering in the next section.</p>
+</section>
+<section id="hierarchical-clustering-of-euclidean-distances" class="level1">
+<h1>Hierarchical clustering of Euclidean distances</h1>
+<p>Euclidean distances are a common way to derive a measure of similarity between samples based on their gene expression profiles. The Euclidean distance between two samples is defined as:</p>
+<p><img src="https://latex.codecogs.com/png.latex?d(x,%20y)%20=%20%5Csqrt%7B%5Csum_%7Bi=1%7D%5E%7Bn%7D%20(x_i%20-%20y_i)%5E2%7D"> where <img src="https://latex.codecogs.com/png.latex?x"> and <img src="https://latex.codecogs.com/png.latex?y"> are the gene expression profiles of the two samples, and <img src="https://latex.codecogs.com/png.latex?n"> is the number of genes. The smaller the distance, the more similar the samples are in terms of their gene expression profiles.</p>
+<p>Let’s calculate them in code and visualise the result as a heatmap.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26" style="background: #f1f3f5;"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Calculate Euclidean distances</span></span>
+<span id="cb26-2">dist_matrix <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">dist</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">t</span>(mat), <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"euclidean"</span>)</span>
+<span id="cb26-3"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Hierarchical clustering</span></span>
+<span id="cb26-4">hc <span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">&lt;-</span> <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">hclust</span>(dist_matrix, <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"complete"</span>)</span>
+<span id="cb26-5"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># Visualize the distance matrix as a heatmap</span></span>
+<span id="cb26-6"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">library</span>(pheatmap) <span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;"># for heatmap visualization</span></span>
+<span id="cb26-7"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">pheatmap</span>(<span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">as.matrix</span>(dist_matrix),</span>
+<span id="cb26-8">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">clustering_distance_rows =</span> dist_matrix,</span>
+<span id="cb26-9">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">clustering_distance_cols =</span> dist_matrix,</span>
+<span id="cb26-10">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">clustering_method =</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"complete"</span>,</span>
+<span id="cb26-11">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">annotation_col =</span> meta[, <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">c</span>(<span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"platform"</span>, <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"condition"</span>)],</span>
+<span id="cb26-12">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">show_rownames =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>,</span>
+<span id="cb26-13">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">show_colnames =</span> <span class="cn" style="color: #8f5902;
+background-color: null;
+font-style: inherit;">TRUE</span>,</span>
+<span id="cb26-14">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fontsize_row =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>,</span>
+<span id="cb26-15">         <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">fontsize_col =</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">6</span>)</span></code></pre></div></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="https://in-search-of-lost-data.com/posts/rnaseq-part-2/index_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="1152"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We notice two things: First, samples cluster by platform and the condition looks mixed within clusters. This further supports the idea that the batch effect is a strong source of variation in our data we definitely have to account for in downstream analysis. Second, there is a red strip of four samples which are highly distant from the rest of the samples.</p>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>In this part of the RNA-seq analysis series, we have loaded the count matrix and metadata, performed a principal component analysis to check for batch effects and visualized the results using a biplot and pairs plot. We also calculated Euclidean distances between samples and visualized them as a heatmap with hierarchical clustering. We observed that there is a strong batch effect present in the data, which we will need to account for in downstream analysis. Additionally, we identified a subset of samples that are highly distant from the rest of the samples, which may indicate potential outliers or technical artifacts that we will need to investigate further. In the next part of the series, we will discuss how to perform differential expression analysis while accounting for batch effects and other sources of variation in our data.</p>
+
+
+</section>
+
+ ]]></description>
+  <category>RNA-seq</category>
+  <category>analysis</category>
+  <category>tutorial</category>
+  <guid>https://in-search-of-lost-data.com/posts/rnaseq-part-2/</guid>
+  <pubDate>Tue, 17 Mar 2026 23:00:00 GMT</pubDate>
+  <media:content url="https://in-search-of-lost-data.com/posts/rnaseq-part-2/rnaseq-qc.jpg" medium="image" type="image/jpeg"/>
+</item>
 <item>
   <title>RNA-Seq Analysis Part 1: Introduction and Data Preprocessing</title>
   <dc:creator>Robin Schäper</dc:creator>
@@ -99,6 +1029,7 @@ font-style: inherit;">\</span></span></code></pre></div></div>
 <li><strong>Adapter content</strong>: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.</li>
 <li><strong>Alignment statistics</strong>: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads.</li>
 </ul>
+<p>Detailed explanations of these and other metrics can be found in an example <a href="https://seqera.io/examples/wgs/multiqc_report.html">here</a>.</p>
 </section>
 </section>
 <section id="conclusion" class="level1">

@@ -80,5 +80,7 @@ The most important metrics to look at in the MultiQC report are:
 * **Adapter content**: This plot shows the percentage of reads that contain adapter sequences. A high percentage of adapter contamination can indicate issues with library preparation and may require additional trimming.
 * **Alignment statistics**: This section provides information on the percentage of reads that were successfully aligned to the reference genome. A low alignment rate can indicate issues with the reference genome or the quality of the reads.
 
+Detailed explanations of these and other metrics can be found in an example [here](https://seqera.io/examples/wgs/multiqc_report.html).
+
 # Conclusion
 In this first part of our RNA-seq analysis series, we have covered the importance of experimental design and how to preprocess raw sequencing data using the nf-core RNA-seq pipeline. We have also discussed how to use MultiQC to assess the quality of our sequencing data. In the next part, we will dive into downstream analysis, including our own quality control, exploratory data analysis, differential expression analysis and functional enrichment analysis.

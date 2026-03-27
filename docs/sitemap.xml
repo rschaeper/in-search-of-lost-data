@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://in-search-of-lost-data.com/posts/rnaseq-part-1/index.html</loc>
-    <lastmod>2026-03-03T12:17:57.187Z</lastmod>
+    <loc>https://in-search-of-lost-data.com/posts/rnaseq-part-2/index.html</loc>
+    <lastmod>2026-03-27T11:29:32.185Z</lastmod>
+  </url>
+  <url>
+    <loc>https://in-search-of-lost-data.com/index.html</loc>
+    <lastmod>2026-02-20T11:19:34.612Z</lastmod>
   </url>
   <url>
     <loc>https://in-search-of-lost-data.com/about.html</loc>
     <lastmod>2026-02-25T10:23:33.715Z</lastmod>
   </url>
   <url>
-    <loc>https://in-search-of-lost-data.com/index.html</loc>
-    <lastmod>2026-02-20T11:19:34.612Z</lastmod>
+    <loc>https://in-search-of-lost-data.com/posts/rnaseq-part-1/index.html</loc>
+    <lastmod>2026-03-17T11:00:34.257Z</lastmod>
   </url>
 </urlset>
