@@ -1,7 +1,7 @@
 ---
 title: "RNA-Seq Analysis Part 2: Loading Data and Quality Control"
 author: "Robin Schäper"
-date: "2026-03-18"
+date: "2026-03-27"
 categories: [RNA-seq, analysis, tutorial]
 image: "rnaseq-qc.jpg"
 page-layout: article
