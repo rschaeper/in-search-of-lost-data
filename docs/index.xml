@@ -924,7 +924,7 @@ font-style: inherit;">6</span>)</span></code></pre></div></div>
 </div>
 </div>
 </div>
-<p>We notice two things: First, samples cluster by platform and the condition looks mixed within clusters. This further supports the idea that the batch effect is a strong source of variation in our data we definitely have to account for in downstream analysis. Second, there is a red strip of four samples which are highly distant from the rest of the samples.</p>
+<p>We notice two things: First, samples cluster by platform and the condition looks mixed within clusters. This further supports the idea that the batch effect is a strong source of variation in our data we definitely have to account for in downstream analysis. Second, there are red strips of samples which are highly distant from the rest of the samples near the top of the plot and around the middle (the red cross). We saw some of these outliers already in the PCA biplot, where they were separated from the rest of the samples along PC5. A sample should only be removed if there is a clear technical justification for doing so, such as low sequencing depth, poor quality metrics, or evidence of contamination. Because we don’t have any additional information about these samples, we will keep them in our analysis for now, but we will keep an eye on them and investigate further if they show up as outliers in downstream analyses as well.</p>
 </section>
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
