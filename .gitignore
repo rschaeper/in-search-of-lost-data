@@ -1,7 +1,7 @@
 # Quarto build output (not used for GitHub Pages in this setup)
 _site/
 _freeze/
-/.quarto/
+.quarto/
 **/*.quarto_ipynb
 
 # renv local libraries (keep lockfile!)
@@ -22,5 +22,10 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Cache
+*_cache/
+
 # Data
 data/
+
+/.quarto/

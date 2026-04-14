@@ -1,5 +1,6 @@
 ---
-title: "RNA-Seq Analysis Part 2: Loading Data and Quality Control"
+title: "RNA-Seq Analysis Part 2: Loading Data, Quality Control and Exploratory Data Analysis"
+bibliography: references.bib
 author: "Robin Schäper"
 date: "2026-03-18"
 categories: [RNA-seq, analysis, tutorial]
@@ -12,7 +13,7 @@ toc-location: left
 # Introduction
 
 In this second part of our RNA-seq analysis series we will dive deeper into quality control, how to check basic assumptions about our data, detect potential outliers using principal component analysis and hierarchical clustering of Euclidean distances. We will also discuss how to correct for batch effects, which are technical variations that can arise from differences in sample processing, sequencing runs, or other factors that are not related to the biological conditions being studied.
-For this example we will use a count matrix from a diabetes study (bulk-RNAseq, whole blood).
+For this example we will use a count matrix from a diabetes study (bulk-RNAseq, whole blood) [@valentim_transcriptomic_2025].
 Depending on the available metadata, we can compare different tissues, individuals or treatment groups to each other, and the same methods can be applied to other types of omics data (e.g. proteomics, metabolomics, etc.).
 
 # Loading the count matrix and metadata
@@ -41,6 +42,15 @@ Let's remove the "X" prefix from the column names of the count matrix, which is 
 ```{r}
 colnames(counts) <- sub("^X", "", colnames(counts))
 head(counts[, 1:5])
+```
+
+Lastly, we will only keep genes with a count of 10 or more in at least 5 samples. The reason behind this is that low counts are dominated by sampling noise (fluctuate a lot just by chance) and we want to increase our power to detect true positives in statistical analysis (the more genes we test, the more we have to adjust our result for chance discoveries).
+The thresholds chosen do not follow a universal rule, but the higher the counts overall, the more strict we can cut for low counts and the more samples we have the more we can require expression in multiple samples. Depending on our experimental design, we might require expression of a gene in at least the smallest group size (e.g. if we will compare a specific group of 5 diseased samples in a certain age group with another group).
+
+```{r}
+# require genes to have a count of 10 or more in at least 5 samples to be included in the analysis
+keep <- rowSums(counts >= 10) >= 5
+counts <- counts[keep, ]
 ```
 
 ```{r}
@@ -113,6 +123,10 @@ Now we create a mapping between Ensembl gene IDs and gene symbols using the biom
 library(biomaRt) # for gene annotation
 
 # Create a mapping between Ensembl gene IDs and gene symbols
+
+# Allow some more time for the http request
+options(timeout = 300)
+
 ensembl <- useMart(
   biomart = "ENSEMBL_MART_ENSEMBL",
   dataset = "hsapiens_gene_ensembl",
@@ -143,12 +157,156 @@ dds <- DESeqDataSetFromMatrix(
 rowData(dds)$symbol <- gene_symbols[rownames(dds)]
 ```
 
+Let us now account for differences in library size within our data. To achieve this, we will estimate the size factors using DESeq2's built in function `estimateSizeFactors`, which is an implementation of the median of ratios method.
+
+```{r}
+dds <- estimateSizeFactors(dds)
+```
+
+:::{.callout-note collapse="true"}
+## 🧠 The median of ratios method for count normalization
+For each gene $i$ and sample $j$, we have the raw count $k_{ij}$. The median of ratios method consists of the following steps:
+
+1. Compute geometric mean across samples
+
+$$g_i = \left( \prod_{j=1}^n k_{ij} \right)^{1/n}$$
+
+2. For each sample, compute the ratio of each gene's count to the geometric mean
+
+$$r_{ij} = \frac{k_{ij}}{g_i}$$
+
+3. The size factor for sample $j$ is the median of ratios across all genes
+
+$$s_j = \text{median}_i(r_{ij})$$
+
+
+By taking the median of these ratios instead of the mean, this method is more robust to outliers and genes with very high counts.
+The size factors are then used to normalize the counts by dividing the raw counts by the corresponding size factor for each sample.
+:::
+
 For visualization purposes, we will perform a variance stabilizing transformation (VST) on the count data, which will help to stabilize the variance across different levels of expression and make it easier to visualize the data.
 
 ```{r}
 vsd <- vst(dds, blind = TRUE)
 mat <- assay(vsd)
 ```
+
+
+# A closer look at count normalization and variance stabilizing transformation
+
+I want to briefly show the effect of adjusting for library size in our data. Remember, library size adjustment is supposed to make samples more comparable to each other.
+Let's look at the situation with raw counts.
+
+```{r}
+#| label: raw-counts-density-plot
+#| fig-cap: "Density plot of raw counts"
+#| fig-width: 6
+#| fig-height: 6
+#| out-width: 100%
+#| out-height: 100%
+#| fig-align: center
+#| code-fold: true
+#| cache: true
+
+library(ggplot2)
+library(reshape2)
+library(plotly)
+
+counts <- counts(dds, normalized=FALSE)
+
+df_raw <- melt(counts)
+colnames(df_raw) <- c("gene", "sample", "expression")
+
+p <- ggplot(df_raw, aes(x = log2(expression), group = sample, text = sample)) +
+    geom_density(alpha = 0.15, color = "grey40") +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(title = "Density plot of log2 raw counts")
+
+ggplotly(p , tooltip = "text")
+```
+
+Yikes, imagine we would start to compare any genes between samples at this stage - some samples clearly have systematically more counts in all genes than others. And this is a technical effect and not biology (although it makes me think: could a mutation in genes crucial for transcription lead to slightly higher or lower overall gene expression? Any strong alteration probably leads to an organism that is not viable).
+
+What about the normalized counts?
+
+```{r}
+#| label: normalized-counts-density-plot
+#| fig-cap: "Density plot of normalized counts"
+#| fig-width: 6
+#| fig-height: 6
+#| out-width: 100%
+#| out-height: 100%
+#| fig-align: center
+#| code-fold: true
+#| cache: true
+
+library(ggplot2)
+library(reshape2)
+library(plotly)
+
+# retrieve normalized counts
+norm_counts <- counts(dds, normalized=TRUE)
+
+# convert to long form (one row for each sample and gene combination)
+df_norm <- melt(norm_counts)
+colnames(df_norm) <- c("gene", "sample", "expression")
+
+p <- ggplot(df_norm, aes(x = log2(expression), group = sample, text = sample)) +
+    geom_density(alpha = 0.15, color = "grey40") +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(title = "Density plot of log2 normalized counts")
+
+ggplotly(p, tooltip = "text")
+```
+
+Much better, samples are more comparable now. We notice that most genes have a moderate expression, on the left there is a second shoulder of genes expressed in the low-mid range and on the right there is a tail of highly expressed genes.
+
+Three samples appear to behave different from the rest. They are very likely technical outliers, but since I do not have the original QC files available I won't exclude the samples here.
+As long as one cannot clearly backtrace the technical error, the possibility of a biology reason remains in the room. I am not a fan of shaving everything unusual away and believe scientific discoveries are all about accepting these anomalies as something that could be non-technical.
+
+
+:::{.callout-note collapse="true"}
+## 🧠 Why do the curves look like this?
+Low count genes fluctuate a lot from just sampling, variance is large relative to the mean (this behaves roughly like Poisson noise). Larger counts average out this sampling noise, but variance increases beyond Poisson levels due to biological variability (differences between individuals, cell state heterogeneity).
+That is the reason why DESeq2 models counts with a negative binomial distribution, which has an extra parameter to account for this overdispersion once the mean expression gets big.
+
+$$Var(X) = \mu + \alpha \mu^2$$
+where $\mu$ is the mean and $\alpha$ is the dispersion parameter that accounts for the extra variability.
+
+And why this distribution shape? A question of biology. Some genes are perhaps constantly expressed at moderate levels across all samples, while others are actively expressed due to environmental stimuli or disease state.
+I would love to read more about this big picture view of gene expression - why are the logistics of a cell such and such and not different? I'll cut the ramble short here.
+:::
+
+Now we add variance stabilizing transformation to lower the mean-variance dependency.
+
+```{r}
+#| label: vst-density-plot
+#| fig-cap: "Density plot of variance stabilized counts"
+#| fig-width: 6
+#| fig-height: 6
+#| out-width: 100%
+#| out-height: 100%
+#| fig-align: center
+#| code-fold: true
+#| cache: true
+
+# convert matrix to long format
+df <- melt(mat)
+colnames(df) <- c("gene", "sample", "expression")
+
+
+p <- ggplot(df, aes(x = expression, group = sample, text = sample)) +
+    geom_density(alpha = 0.15, color = "grey40") +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(title = "Density plot of variance stabilized counts counts")
+
+ggplotly(p, tooltip = "text")
+```
+
+Great, having approximately homoskedastic data works best vor visualitations like PCA and clustering because it prevents a few highly expressed genes from dominating the variance in our data. Lowly expressed genes are also less noisy now.
 
 # PCA
 
@@ -206,7 +364,7 @@ lab = NULL,
 legendPosition = "top") #
 ```
 
-To obtain accurate results in downstream analysis we could either remove the batch effect using a method like ComBat or include the platform as a covariate in our design formula when performing differential expression analysis with DESeq2. In this case, we have already included the platform as a covariate in our design formula, which should help to account for any potential batch effects in our analysis.
+To obtain accurate results in downstream analysis we could either remove the batch effect using a method like ComBat or limma's `removeBatchEffect` or include the platform as a covariate in our design formula when performing differential expression analysis with DESeq2. In this case, we have already included the platform as a covariate in our design formula, which should help to account for any potential batch effects in our analysis.
 
 What about PC5?
 
@@ -233,6 +391,8 @@ where $x$ and $y$ are the gene expression profiles of the two samples, and $n$ i
 Let's calculate them in code and visualise the result as a heatmap.
 
 ```{r, fig.width=12, fig.height=12}
+#| code-fold: true
+
 # Calculate Euclidean distances
 dist_matrix <- dist(t(mat), method = "euclidean")
 # Hierarchical clustering
@@ -252,9 +412,10 @@ pheatmap(as.matrix(dist_matrix),
 
 We notice two things: First, samples cluster by platform and the condition looks mixed within clusters. This further supports the idea that the batch effect is a strong source of variation in our data we definitely have to account for in downstream analysis.
 Second, there are red strips of samples which are highly distant from the rest of the samples near the top of the plot and around the middle (the red cross).
-We saw some of these outliers already in the PCA biplot, where they were separated from the rest of the samples along PC5. A sample should only be removed if there is a clear technical justification for doing so, such as low sequencing depth, poor quality metrics, or evidence of contamination.
-Because we don't have any additional information about these samples, we will keep them in our analysis for now, but we will keep an eye on them and investigate further if they show up as outliers in downstream analyses as well.
+We saw some of these outliers already in the gene expression density and PCA biplot. With no clear technical justification available, such as low sequencing depth, poor quality metrics, or evidence of contamination, we will keep them in the analysis.
 
 
 # Conclusion
-In this part of the RNA-seq analysis series, we have loaded the count matrix and metadata, performed a principal component analysis to check for batch effects and visualized the results using a biplot and pairs plot. We also calculated Euclidean distances between samples and visualized them as a heatmap with hierarchical clustering. We observed that there is a strong batch effect present in the data, which we will need to account for in downstream analysis. Additionally, we identified a subset of samples that are highly distant from the rest of the samples, which may indicate potential outliers or technical artifacts that we will need to investigate further. In the next part of the series, we will discuss how to perform differential expression analysis while accounting for batch effects and other sources of variation in our data.
+In this part of the RNA-seq analysis series, we have loaded the count matrix and metadata, normalized our counts and performed a principal component analysis. We also calculated Euclidean distances between samples and visualized them as a heatmap with hierarchical clustering. We observed that there is a strong batch effect present in the data, which we will need to account for in downstream analysis. Additionally, we identified a subset of samples that are highly distant from the rest of the samples, which may indicate potential outliers or technical artifacts that we will need to investigate further. In the next part of the series, we will discuss how to perform exploratory data analysis and find out which variables are actually driving variance in our data with variance partitioning analysis.
+
+## References
