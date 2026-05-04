@@ -120,27 +120,19 @@ One more thing: Right now our count matrix contains gene names as row names, but
 Now we create a mapping between Ensembl gene IDs and gene symbols using the biomaRt package, which will allow us to annotate our count matrix with gene symbols for easier interpretation of the results. We will add this as row data to our DESeqDataSet object later on. The reason we keep the Ensembl gene IDs as row names is that they are more stable and less ambiguous than gene symbols, which can sometimes be duplicated or change over time.
 
 ```{r}
-library(biomaRt) # for gene annotation
+library(org.Hs.eg.db)
+library(AnnotationDbi) # for gene annotation
 
 # Create a mapping between Ensembl gene IDs and gene symbols
-
-# Allow some more time for the http request
-options(timeout = 300)
-
-ensembl <- useMart(
-  biomart = "ENSEMBL_MART_ENSEMBL",
-  dataset = "hsapiens_gene_ensembl",
-  host = "https://www.ensembl.org"
-)
 genes <- rownames(counts)
-mapping <- getBM(
-    attributes = c("ensembl_gene_id", "hgnc_symbol"),
-    filters = "ensembl_gene_id",
-    values = genes,
-    mart = ensembl
+
+gene_symbols <- mapIds(
+    org.Hs.eg.db,
+    keys = genes,
+    keytype = "ENSEMBL",
+    column = "SYMBOL",
+    multiVals = "first" # should multiple mappings occur
 )
-# Create a named vector for mapping Ensembl gene IDs to gene symbols
-gene_symbols <- setNames(mapping$hgnc_symbol, mapping$ensembl_gene_id)
 ```
 
 Now we can create the so-called DESeqDataSet object, which is a container for the count matrix and metadata that is used for downstream analysis with the DESeq2 package. This object will allow us to perform various quality control checks and normalization steps before we proceed with differential expression analysis.
@@ -155,6 +147,17 @@ dds <- DESeqDataSetFromMatrix(
 )
 
 rowData(dds)$symbol <- gene_symbols[rownames(dds)]
+
+# cleanup missing gene symbols (NA) and replace them with the Ensembl ID again
+symbols <- rowData(dds)$symbol
+
+# Replace NA with Ensembl IDs
+symbols[is.na(symbols)] <- rownames(dds)
+
+# ensure uniqueness
+symbols <- make.unique(symbols)
+
+rowData(dds)$symbol <- symbols
 ```
 
 Let us now account for differences in library size within our data. To achieve this, we will estimate the size factors using DESeq2's built in function `estimateSizeFactors`, which is an implementation of the median of ratios method.
@@ -269,14 +272,14 @@ As long as one cannot clearly backtrace the technical error, the possibility of 
 
 :::{.callout-note collapse="true"}
 ## 🧠 Why do the curves look like this?
-Low count genes fluctuate a lot from just sampling, variance is large relative to the mean (this behaves roughly like Poisson noise). Larger counts average out this sampling noise, but variance increases beyond Poisson levels due to biological variability (differences between individuals, cell state heterogeneity).
-That is the reason why DESeq2 models counts with a negative binomial distribution, which has an extra parameter to account for this overdispersion once the mean expression gets big.
+    Low count genes fluctuate a lot from just sampling, variance is large relative to the mean (this behaves roughly like Poisson noise). Larger counts average out this sampling noise, but variance increases beyond Poisson levels due to biological variability (differences between individuals, cell state heterogeneity).
+    That is the reason why DESeq2 models counts with a negative binomial distribution, which has an extra parameter to account for this overdispersion once the mean expression gets big.
 
-$$Var(X) = \mu + \alpha \mu^2$$
-where $\mu$ is the mean and $\alpha$ is the dispersion parameter that accounts for the extra variability.
+    $$Var(X) = \mu + \alpha \mu^2$$
+    where $\mu$ is the mean and $\alpha$ is the dispersion parameter that accounts for the extra variability.
 
-And why this distribution shape? A question of biology. Some genes are perhaps constantly expressed at moderate levels across all samples, while others are actively expressed due to environmental stimuli or disease state.
-I would love to read more about this big picture view of gene expression - why are the logistics of a cell such and such and not different? I'll cut the ramble short here.
+    And why this distribution shape? A question of biology. Some genes are perhaps constantly expressed at moderate levels across all samples, while others are actively expressed due to environmental stimuli or disease state.
+    I would love to read more about this big picture view of gene expression - why are the logistics of a cell such and such and not different? I'll cut the ramble short here.
 :::
 
 Now we add variance stabilizing transformation to lower the mean-variance dependency.
@@ -317,14 +320,15 @@ library(PCAtools) # for PCA visualization
 p <- pca(mat, metadata = meta, removeVar = 0.1)
 
 # set the row names of loadings to the gene symbols
-# Get symbols
 symbols <- rowData(dds)$symbol
-names(symbols) <- rownames(dds)  # ENSG IDs as names
+
 matched_symbols <- symbols[rownames(p$loadings)]
+
+# fallback for NA
 matched_symbols[is.na(matched_symbols)] <- rownames(p$loadings)
+
 # ensure uniqueness
-labels <- make.unique(matched_symbols)
-rownames(p$loadings) <- labels
+rownames(p$loadings) <- make.unique(matched_symbols)
 
 biplot(p,
 colby = "platform",

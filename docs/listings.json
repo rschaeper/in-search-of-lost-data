@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/rnaseq-part-4/index.html",
       "/posts/rnaseq-part-3/index.html",
       "/posts/rnaseq-part-2/index.html",
       "/posts/rnaseq-part-1/index.html"

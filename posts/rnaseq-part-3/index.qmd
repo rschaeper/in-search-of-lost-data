@@ -24,7 +24,8 @@ We have already prepared our data and generated the DESeqDataSet object, which c
 #load necessary libraries
 library(here) # for file paths
 library(DESeq2) # for RNA-seq analysis
-library(biomaRt) # for gene annotation
+library(org.Hs.eg.db)
+library(AnnotationDbi) # for gene annotation
 
 # Downloading the count matrix
 url <- "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE123658&format=file&file=GSE123658%5Fread%5Fcounts%2Egene%5Flevel%2Etxt%2Egz"
@@ -91,24 +92,15 @@ meta$sex <- factor(meta$`Sex:ch1`, levels = c("M", "F"))
 meta <- meta[match(colnames(counts), rownames(meta)), ]
 
 # Create a mapping between Ensembl gene IDs and gene symbols
-
-# Allow some more time for the http request
-options(timeout = 300)
-
-ensembl <- useMart(
-  biomart = "ENSEMBL_MART_ENSEMBL",
-  dataset = "hsapiens_gene_ensembl",
-  host = "https://www.ensembl.org"
-)
 genes <- rownames(counts)
-mapping <- getBM(
-    attributes = c("ensembl_gene_id", "hgnc_symbol"),
-    filters = "ensembl_gene_id",
-    values = genes,
-    mart = ensembl
+
+gene_symbols <- mapIds(
+    org.Hs.eg.db,
+    keys = genes,
+    keytype = "ENSEMBL",
+    column = "SYMBOL",
+    multiVals = "first" # should multiple mappings occur
 )
-# Create a named vector for mapping Ensembl gene IDs to gene symbols
-gene_symbols <- setNames(mapping$hgnc_symbol, mapping$ensembl_gene_id)
 
 # Create DESeqDataSet object
 dds <- DESeqDataSetFromMatrix(
@@ -120,6 +112,18 @@ dds <- DESeqDataSetFromMatrix(
 # Add gene symbols as row data
 rowData(dds)$symbol <- gene_symbols[rownames(dds)]
 
+# cleanup missing gene symbols (NA) and replace them with the Ensembl ID again
+symbols <- rowData(dds)$symbol
+
+# Replace NA with Ensembl IDs
+symbols[is.na(symbols)] <- rownames(dds)
+
+# ensure uniqueness
+symbols <- make.unique(symbols)
+
+rowData(dds)$symbol <- symbols
+
+# adjust for RNA library size
 dds <- estimateSizeFactors(dds)
 
 # Perform variance stabilizing transformation to reduce mean-variance dependence
