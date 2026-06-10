@@ -3,7 +3,7 @@ title: "RNA-Seq Analysis Part 2: Loading Data, Quality Control and Exploratory D
 bibliography: references.bib
 author: "Robin Schäper"
 date: "2026-03-18"
-categories: [RNA-seq, analysis, tutorial]
+categories: [RNA-seq, analysis, tutorial, R]
 image: "rnaseq-qc.jpg"
 page-layout: article
 toc: true
@@ -13,7 +13,7 @@ toc-location: left
 # Introduction
 
 In this second part of our RNA-seq analysis series we will dive deeper into quality control, how to check basic assumptions about our data, detect potential outliers using principal component analysis and hierarchical clustering of Euclidean distances. We will also discuss how to correct for batch effects, which are technical variations that can arise from differences in sample processing, sequencing runs, or other factors that are not related to the biological conditions being studied.
-For this example we will use a count matrix from a diabetes study (bulk-RNAseq, whole blood) [@valentim_transcriptomic_2025].
+For this example we will use a count matrix from a type I diabetes study (bulk-RNAseq, whole blood) [@valentim_transcriptomic_2025].
 Depending on the available metadata, we can compare different tissues, individuals or treatment groups to each other, and the same methods can be applied to other types of omics data (e.g. proteomics, metabolomics, etc.).
 
 # Loading the count matrix and metadata
@@ -337,9 +337,67 @@ lab = NULL,
 legendPosition = "top")
 ```
 
-We observe that a subset of disease samples are separated from the control samples along the first principal component and no distinction between the two platforms is visible at first glance.
+The separation of disease samples from control samples along the first principal component is quite subtle. Ideally, we would observe much more distinct clusters. What happened?
 
-Let's skim the data with a pairs plot to see if any principal component is correlated with the platform, which would indicate a batch effect.
+* 
++ It could be that our condition of interest is confounded with a batch effect or other metadata variable, but we checked that.
++ It could be that the effect of our condition is simply small, but variance partitioning analysis showed us it is of a modest size.
++ It could be that disase samples are too heterogeneous in their expression profiles to cluster neatly.
++ It could be that cell composition varies substantially between samples. The dominant variation could be due to differences in cell abundance and not disease biology. Deconvolution methods, but ideally single-cell approaches could help.
++ It could be that we have to reconsider our statistical model, for example, we may need the interaction term `~ condition * sex` to study the diease.
+
+For now, we will proceed with the standard analysis, i.e. differential gene expression analysis and gene set enrichment. However, this gives us the opportunity to discuss our scientific question from a different angle.
+We may no longer ask: "what are consistently differentially expressed genes between healthy controls and type I diabetes subjects?" because such consistency is not what we find. Instead we may start to focus on why type I diabetes subjects are so heterogeneous. Are there perhaps defined subgroups? Let's do a PCA with just the diseased subjects.
+
+```{r, fig.width=8, fig.height=8}
+#| code-fold: true
+library(PCAtools) # for PCA visualization
+
+# subset dds to diabetes samples
+dds_diabetes <- dds[, colData(dds)$condition == "disease"]
+
+# get expression matrix of diabetes samples
+mat_diabetes <- assay(vst(dds_diabetes, blind = TRUE))
+
+# get metadata of diabetes samples
+meta_diabetes <- as.data.frame(colData(dds_diabetes))
+
+p_diabetes <- pca(mat_diabetes, metadata = meta_diabetes, removeVar = 0.1)
+
+# set the row names of loadings to the gene symbols
+symbols <- rowData(dds_diabetes)$symbol
+
+matched_symbols <- symbols[rownames(p_diabetes$loadings)]
+
+# fallback for NA
+matched_symbols[is.na(matched_symbols)] <- rownames(p_diabetes$loadings)
+
+# ensure uniqueness
+rownames(p_diabetes$loadings) <- make.unique(matched_symbols)
+
+biplot(p_diabetes,
+colby = "platform",
+lab = NULL,
+legendPosition = "top")
+```
+
+```{r, fig.width=8, fig.height=8}
+#| code-fold: true
+  pairsplot(p_diabetes,
+    components = getComponents(p, c(1:10)),
+    triangle = TRUE, trianglelabSize = 12,
+    hline = 0, vline = 0,
+    pointSize = 0.4,
+    gridlines.major = FALSE, gridlines.minor = FALSE,
+    colby = 'platform',
+    title = 'Pairs plot', plotaxes = FALSE,
+    margingaps = unit(c(-0.01, -0.01, -0.01, -0.01), 'cm'))
+```
+
+It could be that we are dealing with three subgroups of type I diabetes gene expression profiles. Now we are at a crossroad where we can further investigate this new angle for our scientific question.
+However, for tutorial purposes, I want to show you how the standard analysis proceeds. Please be aware that at this crossroad we could also try to characterize the subclusters and how they differ in their gene expression profile in a similar manner.
+
+Back to our full data with healthy and diabetes subjects. Let's skim the data with a pairs plot to see if any other principal component is correlated with the platform, which would indicate a batch effect.
 
 ```{r, fig.width=8, fig.height=8}
 #| code-fold: true

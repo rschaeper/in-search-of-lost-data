@@ -219,6 +219,7 @@ window.Quarto = {
                 <div class="quarto-category">RNA-seq</div>
                 <div class="quarto-category">analysis</div>
                 <div class="quarto-category">tutorial</div>
+                <div class="quarto-category">R</div>
               </div>
                   </div>
   </div>
@@ -276,7 +277,7 @@ window.Quarto = {
 
 <section id="introduction" class="level1">
 <h1>Introduction</h1>
-<p>In this second part of our RNA-seq analysis series we will dive deeper into quality control, how to check basic assumptions about our data, detect potential outliers using principal component analysis and hierarchical clustering of Euclidean distances. We will also discuss how to correct for batch effects, which are technical variations that can arise from differences in sample processing, sequencing runs, or other factors that are not related to the biological conditions being studied. For this example we will use a count matrix from a diabetes study (bulk-RNAseq, whole blood) <span class="citation" data-cites="valentim_transcriptomic_2025">(<a href="#ref-valentim_transcriptomic_2025" role="doc-biblioref">Valentim et al. 2025</a>)</span>. Depending on the available metadata, we can compare different tissues, individuals or treatment groups to each other, and the same methods can be applied to other types of omics data (e.g.&nbsp;proteomics, metabolomics, etc.).</p>
+<p>In this second part of our RNA-seq analysis series we will dive deeper into quality control, how to check basic assumptions about our data, detect potential outliers using principal component analysis and hierarchical clustering of Euclidean distances. We will also discuss how to correct for batch effects, which are technical variations that can arise from differences in sample processing, sequencing runs, or other factors that are not related to the biological conditions being studied. For this example we will use a count matrix from a type I diabetes study (bulk-RNAseq, whole blood) <span class="citation" data-cites="valentim_transcriptomic_2025">(<a href="#ref-valentim_transcriptomic_2025" role="doc-biblioref">Valentim et al. 2025</a>)</span>. Depending on the available metadata, we can compare different tissues, individuals or treatment groups to each other, and the same methods can be applied to other types of omics data (e.g.&nbsp;proteomics, metabolomics, etc.).</p>
 </section>
 <section id="loading-the-count-matrix-and-metadata" class="level1">
 <h1>Loading the count matrix and metadata</h1>
@@ -413,27 +414,19 @@ NextSeq   HiSeq
 <p>One more thing: Right now our count matrix contains gene names as row names, but for downstream analysis with DESeq2 we will need to have Ensembl gene IDs as row names. We can use the biomaRt package to convert gene names to Ensembl gene IDs.</p>
 <p>Now we create a mapping between Ensembl gene IDs and gene symbols using the biomaRt package, which will allow us to annotate our count matrix with gene symbols for easier interpretation of the results. We will add this as row data to our DESeqDataSet object later on. The reason we keep the Ensembl gene IDs as row names is that they are more stable and less ambiguous than gene symbols, which can sometimes be duplicated or change over time.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(biomaRt) <span class="co"># for gene annotation</span></span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a mapping between Ensembl gene IDs and gene symbols</span></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Allow some more time for the http request</span></span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">timeout =</span> <span class="dv">300</span>)</span>
-<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>ensembl <span class="ot">&lt;-</span> <span class="fu">useMart</span>(</span>
-<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">biomart =</span> <span class="st">"ENSEMBL_MART_ENSEMBL"</span>,</span>
-<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">dataset =</span> <span class="st">"hsapiens_gene_ensembl"</span>,</span>
-<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">host =</span> <span class="st">"https://www.ensembl.org"</span></span>
-<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>genes <span class="ot">&lt;-</span> <span class="fu">rownames</span>(counts)</span>
-<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>mapping <span class="ot">&lt;-</span> <span class="fu">getBM</span>(</span>
-<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">attributes =</span> <span class="fu">c</span>(<span class="st">"ensembl_gene_id"</span>, <span class="st">"hgnc_symbol"</span>),</span>
-<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">filters =</span> <span class="st">"ensembl_gene_id"</span>,</span>
-<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">values =</span> genes,</span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">mart =</span> ensembl</span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a named vector for mapping Ensembl gene IDs to gene symbols</span></span>
-<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>gene_symbols <span class="ot">&lt;-</span> <span class="fu">setNames</span>(mapping<span class="sc">$</span>hgnc_symbol, mapping<span class="sc">$</span>ensembl_gene_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(org.Hs.eg.db)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(AnnotationDbi) <span class="co"># for gene annotation</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a mapping between Ensembl gene IDs and gene symbols</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>genes <span class="ot">&lt;-</span> <span class="fu">rownames</span>(counts)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>gene_symbols <span class="ot">&lt;-</span> <span class="fu">mapIds</span>(</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    org.Hs.eg.db,</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">keys =</span> genes,</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">keytype =</span> <span class="st">"ENSEMBL"</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">column =</span> <span class="st">"SYMBOL"</span>,</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">multiVals =</span> <span class="st">"first"</span> <span class="co"># should multiple mappings occur</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Now we can create the so-called DESeqDataSet object, which is a container for the count matrix and metadata that is used for downstream analysis with the DESeq2 package. This object will allow us to perform various quality control checks and normalization steps before we proceed with differential expression analysis. We will use the “platform” and “condition” columns from the metadata as covariates in our design formula, which will allow us to account for potential batch effects and biological variation in our analysis.</p>
 <div class="cell">
@@ -444,7 +437,18 @@ NextSeq   HiSeq
 <span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">design =</span> <span class="sc">~</span> platform <span class="sc">+</span> condition</span>
 <span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rowData</span>(dds)<span class="sc">$</span>symbol <span class="ot">&lt;-</span> gene_symbols[<span class="fu">rownames</span>(dds)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">rowData</span>(dds)<span class="sc">$</span>symbol <span class="ot">&lt;-</span> gene_symbols[<span class="fu">rownames</span>(dds)]</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co"># cleanup missing gene symbols (NA) and replace them with the Ensembl ID again</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>symbols <span class="ot">&lt;-</span> <span class="fu">rowData</span>(dds)<span class="sc">$</span>symbol</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace NA with Ensembl IDs</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>symbols[<span class="fu">is.na</span>(symbols)] <span class="ot">&lt;-</span> <span class="fu">rownames</span>(dds)</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure uniqueness</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>symbols <span class="ot">&lt;-</span> <span class="fu">make.unique</span>(symbols)</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a><span class="fu">rowData</span>(dds)<span class="sc">$</span>symbol <span class="ot">&lt;-</span> symbols</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <p>Let us now account for differences in library size within our data. To achieve this, we will estimate the size factors using DESeq2’s built in function <code>estimateSizeFactors</code>, which is an implementation of the median of ratios method.</p>
 <div class="cell">
@@ -558,9 +562,14 @@ NextSeq   HiSeq
 </div>
 <div id="callout-2" class="callout-2-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>Low count genes fluctuate a lot from just sampling, variance is large relative to the mean (this behaves roughly like Poisson noise). Larger counts average out this sampling noise, but variance increases beyond Poisson levels due to biological variability (differences between individuals, cell state heterogeneity). That is the reason why DESeq2 models counts with a negative binomial distribution, which has an extra parameter to account for this overdispersion once the mean expression gets big.</p>
-<p><span class="math display">\[Var(X) = \mu + \alpha \mu^2\]</span> where <span class="math inline">\(\mu\)</span> is the mean and <span class="math inline">\(\alpha\)</span> is the dispersion parameter that accounts for the extra variability.</p>
-<p>And why this distribution shape? A question of biology. Some genes are perhaps constantly expressed at moderate levels across all samples, while others are actively expressed due to environmental stimuli or disease state. I would love to read more about this big picture view of gene expression - why are the logistics of a cell such and such and not different? I’ll cut the ramble short here.</p>
+<pre><code>Low count genes fluctuate a lot from just sampling, variance is large relative to the mean (this behaves roughly like Poisson noise). Larger counts average out this sampling noise, but variance increases beyond Poisson levels due to biological variability (differences between individuals, cell state heterogeneity).
+That is the reason why DESeq2 models counts with a negative binomial distribution, which has an extra parameter to account for this overdispersion once the mean expression gets big.
+
+$$Var(X) = \mu + \alpha \mu^2$$
+where $\mu$ is the mean and $\alpha$ is the dispersion parameter that accounts for the extra variability.
+
+And why this distribution shape? A question of biology. Some genes are perhaps constantly expressed at moderate levels across all samples, while others are actively expressed due to environmental stimuli or disease state.
+I would love to read more about this big picture view of gene expression - why are the logistics of a cell such and such and not different? I'll cut the ramble short here.</code></pre>
 </div>
 </div>
 </div>
@@ -568,18 +577,18 @@ NextSeq   HiSeq
 <div class="cell" data-layout-align="center">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># convert matrix to long format</span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">melt</span>(mat)</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(df) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"gene"</span>, <span class="st">"sample"</span>, <span class="st">"expression"</span>)</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> expression, <span class="at">group =</span> sample, <span class="at">text =</span> sample)) <span class="sc">+</span></span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_density</span>(<span class="at">alpha =</span> <span class="fl">0.15</span>, <span class="at">color =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Density plot of variance stabilized counts counts"</span>)</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplotly</span>(p, <span class="at">tooltip =</span> <span class="st">"text"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co"># convert matrix to long format</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">melt</span>(mat)</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(df) <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"gene"</span>, <span class="st">"sample"</span>, <span class="st">"expression"</span>)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">ggplot</span>(df, <span class="fu">aes</span>(<span class="at">x =</span> expression, <span class="at">group =</span> sample, <span class="at">text =</span> sample)) <span class="sc">+</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">geom_density</span>(<span class="at">alpha =</span> <span class="fl">0.15</span>, <span class="at">color =</span> <span class="st">"grey40"</span>) <span class="sc">+</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>) <span class="sc">+</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Density plot of variance stabilized counts counts"</span>)</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplotly</span>(p, <span class="at">tooltip =</span> <span class="st">"text"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div class="plotly html-widget html-fill-item" id="htmlwidget-8df080b35c196a26dba7" style="width:100%;height:100%;"></div>
@@ -594,25 +603,26 @@ NextSeq   HiSeq
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(PCAtools) <span class="co"># for PCA visualization</span></span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">pca</span>(mat, <span class="at">metadata =</span> meta, <span class="at">removeVar =</span> <span class="fl">0.1</span>)</span>
-<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a><span class="co"># set the row names of loadings to the gene symbols</span></span>
-<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Get symbols</span></span>
-<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>symbols <span class="ot">&lt;-</span> <span class="fu">rowData</span>(dds)<span class="sc">$</span>symbol</span>
-<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(symbols) <span class="ot">&lt;-</span> <span class="fu">rownames</span>(dds)  <span class="co"># ENSG IDs as names</span></span>
-<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>matched_symbols <span class="ot">&lt;-</span> symbols[<span class="fu">rownames</span>(p<span class="sc">$</span>loadings)]</span>
-<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>matched_symbols[<span class="fu">is.na</span>(matched_symbols)] <span class="ot">&lt;-</span> <span class="fu">rownames</span>(p<span class="sc">$</span>loadings)</span>
-<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure uniqueness</span></span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>labels <span class="ot">&lt;-</span> <span class="fu">make.unique</span>(matched_symbols)</span>
-<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(p<span class="sc">$</span>loadings) <span class="ot">&lt;-</span> labels</span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p,</span>
-<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
-<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a><span class="at">shape =</span> <span class="st">"condition"</span>,</span>
-<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="at">lab =</span> <span class="cn">NULL</span>,</span>
-<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(PCAtools) <span class="co"># for PCA visualization</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="fu">pca</span>(mat, <span class="at">metadata =</span> meta, <span class="at">removeVar =</span> <span class="fl">0.1</span>)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co"># set the row names of loadings to the gene symbols</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>symbols <span class="ot">&lt;-</span> <span class="fu">rowData</span>(dds)<span class="sc">$</span>symbol</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>matched_symbols <span class="ot">&lt;-</span> symbols[<span class="fu">rownames</span>(p<span class="sc">$</span>loadings)]</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="co"># fallback for NA</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>matched_symbols[<span class="fu">is.na</span>(matched_symbols)] <span class="ot">&lt;-</span> <span class="fu">rownames</span>(p<span class="sc">$</span>loadings)</span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure uniqueness</span></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(p<span class="sc">$</span>loadings) <span class="ot">&lt;-</span> <span class="fu">make.unique</span>(matched_symbols)</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p,</span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a><span class="at">shape =</span> <span class="st">"condition"</span>,</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a><span class="at">lab =</span> <span class="cn">NULL</span>,</span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
@@ -622,20 +632,47 @@ NextSeq   HiSeq
 </div>
 </div>
 </div>
-<p>We observe that a subset of disease samples are separated from the control samples along the first principal component and no distinction between the two platforms is visible at first glance.</p>
-<p>Let’s skim the data with a pairs plot to see if any principal component is correlated with the platform, which would indicate a batch effect.</p>
+<p>The separation of disease samples from control samples along the first principal component is quite subtle. Ideally, we would observe much more distinct clusters. What happened?</p>
+<ul>
+<li></li>
+<li>It could be that our condition of interest is confounded with a batch effect or other metadata variable, but we checked that.</li>
+<li>It could be that the effect of our condition is simply small, but variance partitioning analysis showed us it is of a modest size.</li>
+<li>It could be that disase samples are too heterogeneous in their expression profiles to cluster neatly.</li>
+<li>It could be that cell composition varies substantially between samples. The dominant variation could be due to differences in cell abundance and not disease biology. Deconvolution methods, but ideally single-cell approaches could help.</li>
+<li>It could be that we have to reconsider our statistical model, for example, we may need the interaction term <code>~ condition * sex</code> to study the diease.</li>
+</ul>
+<p>For now, we will proceed with the standard analysis, i.e.&nbsp;differential gene expression analysis and gene set enrichment. However, this gives us the opportunity to discuss our scientific question from a different angle. We may no longer ask: “what are consistently differentially expressed genes between healthy controls and type I diabetes subjects?” because such consistency is not what we find. Instead we may start to focus on why type I diabetes subjects are so heterogeneous. Are there perhaps defined subgroups? Let’s do a PCA with just the diseased subjects.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pairsplot</span>(p,</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">components =</span> <span class="fu">getComponents</span>(p, <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)),</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">triangle =</span> <span class="cn">TRUE</span>, <span class="at">trianglelabSize =</span> <span class="dv">12</span>,</span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">hline =</span> <span class="dv">0</span>, <span class="at">vline =</span> <span class="dv">0</span>,</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">pointSize =</span> <span class="fl">0.4</span>,</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">gridlines.major =</span> <span class="cn">FALSE</span>, <span class="at">gridlines.minor =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">colby =</span> <span class="st">'platform'</span>,</span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">'Pairs plot'</span>, <span class="at">plotaxes =</span> <span class="cn">FALSE</span>,</span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">margingaps =</span> <span class="fu">unit</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>), <span class="st">'cm'</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(PCAtools) <span class="co"># for PCA visualization</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="co"># subset dds to diabetes samples</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>dds_diabetes <span class="ot">&lt;-</span> dds[, <span class="fu">colData</span>(dds)<span class="sc">$</span>condition <span class="sc">==</span> <span class="st">"disease"</span>]</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="co"># get expression matrix of diabetes samples</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>mat_diabetes <span class="ot">&lt;-</span> <span class="fu">assay</span>(<span class="fu">vst</span>(dds_diabetes, <span class="at">blind =</span> <span class="cn">TRUE</span>))</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a><span class="co"># get metadata of diabetes samples</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>meta_diabetes <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">colData</span>(dds_diabetes))</span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>p_diabetes <span class="ot">&lt;-</span> <span class="fu">pca</span>(mat_diabetes, <span class="at">metadata =</span> meta_diabetes, <span class="at">removeVar =</span> <span class="fl">0.1</span>)</span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a><span class="co"># set the row names of loadings to the gene symbols</span></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>symbols <span class="ot">&lt;-</span> <span class="fu">rowData</span>(dds_diabetes)<span class="sc">$</span>symbol</span>
+<span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>matched_symbols <span class="ot">&lt;-</span> symbols[<span class="fu">rownames</span>(p_diabetes<span class="sc">$</span>loadings)]</span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a><span class="co"># fallback for NA</span></span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>matched_symbols[<span class="fu">is.na</span>(matched_symbols)] <span class="ot">&lt;-</span> <span class="fu">rownames</span>(p_diabetes<span class="sc">$</span>loadings)</span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a><span class="co"># ensure uniqueness</span></span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a><span class="fu">rownames</span>(p_diabetes<span class="sc">$</span>loadings) <span class="ot">&lt;-</span> <span class="fu">make.unique</span>(matched_symbols)</span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p_diabetes,</span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a><span class="at">lab =</span> <span class="cn">NULL</span>,</span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
@@ -645,18 +682,18 @@ NextSeq   HiSeq
 </div>
 </div>
 </div>
-<p>Principal components (PC) 4 and 6 seem to be correlated with the platform, which suggests that there may be a batch effect present in the data. We are also curious what PC5 is about.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p,</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="at">x =</span> <span class="st">"PC4"</span>,</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="at">y =</span> <span class="st">"PC6"</span>,</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="at">showLoadings =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="at">shape =</span> <span class="st">"condition"</span>,</span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="at">lab =</span> <span class="cn">NULL</span>,</span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>) <span class="co">#</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pairsplot</span>(p_diabetes,</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">components =</span> <span class="fu">getComponents</span>(p, <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)),</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">triangle =</span> <span class="cn">TRUE</span>, <span class="at">trianglelabSize =</span> <span class="dv">12</span>,</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">hline =</span> <span class="dv">0</span>, <span class="at">vline =</span> <span class="dv">0</span>,</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">pointSize =</span> <span class="fl">0.4</span>,</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">gridlines.major =</span> <span class="cn">FALSE</span>, <span class="at">gridlines.minor =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">colby =</span> <span class="st">'platform'</span>,</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">'Pairs plot'</span>, <span class="at">plotaxes =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">margingaps =</span> <span class="fu">unit</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>), <span class="st">'cm'</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
@@ -666,23 +703,67 @@ NextSeq   HiSeq
 </div>
 </div>
 </div>
-<p>To obtain accurate results in downstream analysis we could either remove the batch effect using a method like ComBat or limma’s <code>removeBatchEffect</code> or include the platform as a covariate in our design formula when performing differential expression analysis with DESeq2. In this case, we have already included the platform as a covariate in our design formula, which should help to account for any potential batch effects in our analysis.</p>
-<p>What about PC5?</p>
+<p>It could be that we are dealing with three subgroups of type I diabetes gene expression profiles. Now we are at a crossroad where we can further investigate this new angle for our scientific question. However, for tutorial purposes, I want to show you how the standard analysis proceeds. Please be aware that at this crossroad we could also try to characterize the subclusters and how they differ in their gene expression profile in a similar manner.</p>
+<p>Back to our full data with healthy and diabetes subjects. Let’s skim the data with a pairs plot to see if any other principal component is correlated with the platform, which would indicate a batch effect.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p,</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="at">x =</span> <span class="st">"PC1"</span>,</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="at">y =</span> <span class="st">"PC5"</span>,</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="at">showLoadings =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a><span class="at">shape =</span> <span class="st">"condition"</span>,</span>
-<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pairsplot</span>(p,</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">components =</span> <span class="fu">getComponents</span>(p, <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)),</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">triangle =</span> <span class="cn">TRUE</span>, <span class="at">trianglelabSize =</span> <span class="dv">12</span>,</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">hline =</span> <span class="dv">0</span>, <span class="at">vline =</span> <span class="dv">0</span>,</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">pointSize =</span> <span class="fl">0.4</span>,</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">gridlines.major =</span> <span class="cn">FALSE</span>, <span class="at">gridlines.minor =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">colby =</span> <span class="st">'platform'</span>,</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">'Pairs plot'</span>, <span class="at">plotaxes =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">margingaps =</span> <span class="fu">unit</span>(<span class="fu">c</span>(<span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>, <span class="sc">-</span><span class="fl">0.01</span>), <span class="st">'cm'</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
 <p><img src="index_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Principal components (PC) 4 and 6 seem to be correlated with the platform, which suggests that there may be a batch effect present in the data. We are also curious what PC5 is about.</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p,</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="at">x =</span> <span class="st">"PC4"</span>,</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="at">y =</span> <span class="st">"PC6"</span>,</span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="at">showLoadings =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="at">shape =</span> <span class="st">"condition"</span>,</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="at">lab =</span> <span class="cn">NULL</span>,</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>) <span class="co">#</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>To obtain accurate results in downstream analysis we could either remove the batch effect using a method like ComBat or limma’s <code>removeBatchEffect</code> or include the platform as a covariate in our design formula when performing differential expression analysis with DESeq2. In this case, we have already included the platform as a covariate in our design formula, which should help to account for any potential batch effects in our analysis.</p>
+<p>What about PC5?</p>
+<div class="cell">
+<details class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">biplot</span>(p,</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="at">x =</span> <span class="st">"PC1"</span>,</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="at">y =</span> <span class="st">"PC5"</span>,</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="at">showLoadings =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a><span class="at">colby =</span> <span class="st">"platform"</span>,</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a><span class="at">shape =</span> <span class="st">"condition"</span>,</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a><span class="at">legendPosition =</span> <span class="st">"top"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="768"></p>
 </figure>
 </div>
 </div>
@@ -697,26 +778,26 @@ NextSeq   HiSeq
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate Euclidean distances</span></span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>dist_matrix <span class="ot">&lt;-</span> <span class="fu">dist</span>(<span class="fu">t</span>(mat), <span class="at">method =</span> <span class="st">"euclidean"</span>)</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Hierarchical clustering</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>hc <span class="ot">&lt;-</span> <span class="fu">hclust</span>(dist_matrix, <span class="at">method =</span> <span class="st">"complete"</span>)</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize the distance matrix as a heatmap</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pheatmap) <span class="co"># for heatmap visualization</span></span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a><span class="fu">pheatmap</span>(<span class="fu">as.matrix</span>(dist_matrix),</span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">clustering_distance_rows =</span> dist_matrix,</span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">clustering_distance_cols =</span> dist_matrix,</span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">clustering_method =</span> <span class="st">"complete"</span>,</span>
-<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">annotation_col =</span> meta[, <span class="fu">c</span>(<span class="st">"platform"</span>, <span class="st">"condition"</span>)],</span>
-<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>         <span class="at">show_rownames =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>         <span class="at">show_colnames =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>         <span class="at">fontsize_row =</span> <span class="dv">6</span>,</span>
-<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>         <span class="at">fontsize_col =</span> <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate Euclidean distances</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>dist_matrix <span class="ot">&lt;-</span> <span class="fu">dist</span>(<span class="fu">t</span>(mat), <span class="at">method =</span> <span class="st">"euclidean"</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Hierarchical clustering</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>hc <span class="ot">&lt;-</span> <span class="fu">hclust</span>(dist_matrix, <span class="at">method =</span> <span class="st">"complete"</span>)</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize the distance matrix as a heatmap</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pheatmap) <span class="co"># for heatmap visualization</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="fu">pheatmap</span>(<span class="fu">as.matrix</span>(dist_matrix),</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>         <span class="at">clustering_distance_rows =</span> dist_matrix,</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>         <span class="at">clustering_distance_cols =</span> dist_matrix,</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>         <span class="at">clustering_method =</span> <span class="st">"complete"</span>,</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>         <span class="at">annotation_col =</span> meta[, <span class="fu">c</span>(<span class="st">"platform"</span>, <span class="st">"condition"</span>)],</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>         <span class="at">show_rownames =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>         <span class="at">show_colnames =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>         <span class="at">fontsize_row =</span> <span class="dv">6</span>,</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a>         <span class="at">fontsize_col =</span> <span class="dv">6</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="index_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="1152"></p>
+<p><img src="index_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid figure-img" width="1152"></p>
 </figure>
 </div>
 </div>

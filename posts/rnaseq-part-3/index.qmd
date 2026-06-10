@@ -3,7 +3,7 @@ title: "RNA-Seq Analysis Part 3: Metadata Correlation and Variance Partitioning 
 bibliography: references.bib
 author: "Robin Schäper"
 date: "2026-04-14"
-categories: [RNA-seq, analysis, tutorial]
+categories: [RNA-seq, analysis, tutorial, R]
 image: "rnaseq-meta.jpg"
 page-layout: article
 toc: true

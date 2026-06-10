@@ -3,7 +3,7 @@ title: "RNA-Seq Analysis Part 4: Differential Gene Expression Analysis"
 bibliography: references.bib
 author: "Robin Schäper"
 date: "2026-05-04"
-categories: [RNA-seq, analysis, tutorial]
+categories: [RNA-seq, analysis, tutorial, R]
 image: "rnaseq-dgea.jpg"
 page-layout: article
 toc: true
@@ -138,9 +138,9 @@ DESeq2 manages to be the most user-friendly among the three, however edgeR can p
 
 # Design matrices
 So you have conducted your sequencing experiment and would now like to formulate your scientific question as something the computer can understand. One way you can do this is by making use of the so-called experimental design or design matrix.
-For example, you want to check if your condition of interest leads to statistically significant differences in gene expression compared to the control. The design matrix for this would simply
-`~ condition`.
-But designs can get more complex. For example, you might want to check if the effects of your condition are dependent on the sex of the individuals. In this case, you would need to include an interaction term in your design matrix, which would look like this: `~ condition * sex` or `~ condition + sex + condition:sex`(the two are equivalent).
+For example, you want to check if your condition of interest leads to statistically significant differences in gene expression compared to the control. The design matrix for this would simply be
+`~ condition`.\
+But designs can get more complex. For example, you might want to check if the effects of your condition are dependent on the sex of the individuals. In this case, you would need to include an interaction term in your design matrix, which would look like this: `~ condition * sex` or `~ condition + sex + condition:sex`(the two are equivalent).\
 When creating the DESeqDataSet object (dds), we have already specified a design matrix. One can look it up this way:
 
 ```{r}
@@ -356,7 +356,7 @@ To create the volcano plot, we will make use of the package `EnhancedVolcano`fro
 
 ```{r}
 #| label: volcano-plot
-#| fig-cap: "Volcano plot of differentially expressed genes between diabetes and healthy subjects"
+#| fig-cap: "Volcano plot of differentially expressed genes between type I diabetes and healthy subjects"
 #| fig-width: 8
 #| fig-height: 8
 #| out-width: 100%
@@ -376,9 +376,19 @@ EnhancedVolcano(
 )
 ```
 
-Cool, these are the genes that are significantly differentially expressed in subjects with diabetes compared to healthy subjects.
+Cool, these could be the genes that are significantly differentially expressed in subjects with type I diabetes compared to healthy subjects.
 
-But here is the lingering problem: While people with expert domain knowledge might look at a set of differentially expressed genes and quickly get which underlying biological process is affected (not that I have ever met such a person), it can be helpful to move the analysis to the level of biological pathways. We will do so in the next part using a technique called gene set enrichment analysis.
+BUT! (*dum dum dum!*)
+
+```{r}
+res_thresh <- as.data.frame(res_thresh)
+sum(res_thresh$padj < 0.05, na.rm = TRUE)
+```
+
+A meager single gene has passed our adjusted p-value threshold. This indicates that statistical evidence for any of the effects we observe is low. Remember the PCA plot we discussed in part 2 of this series? We see a continuation of the problem here. Type I diabetes samples appear to constitute a heterogeneous class of gene expression profiles. Statements of the form "gene X is significantly higher expressed in type I diabetes subjects compared to healthy controls" is not possible here. The heterogeneity is the trend! And this opens the exciting opportunity to study subgroups in our type I diabetes samples to refine our scientific question.
+But for tutorial purposes we will proceed with the standard analysis for now.
+
+There is another lingering problem: While people with expert domain knowledge might look at a set of differentially expressed genes and quickly get which underlying biological process is affected (not that I have ever met such a person), it can be helpful to move the analysis to the level of biological pathways. We will do so in the next part using a technique called gene set enrichment analysis.
 
 # Conclusion
 We have learned a lot about DESeq, how to make use of its very user friendly functions and statistical caveats like multiple hypothesis testing. We have generated our first list of significantly differentially expressed genes and are ready to make even cooler visualizations next!

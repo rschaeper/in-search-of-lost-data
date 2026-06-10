@@ -201,6 +201,7 @@ window.Quarto = {
                 <div class="quarto-category">RNA-seq</div>
                 <div class="quarto-category">analysis</div>
                 <div class="quarto-category">tutorial</div>
+                <div class="quarto-category">R</div>
               </div>
                   </div>
   </div>
@@ -380,7 +381,9 @@ window.Quarto = {
 </section>
 <section id="design-matrices" class="level1">
 <h1>Design matrices</h1>
-<p>So you have conducted your sequencing experiment and would now like to formulate your scientific question as something the computer can understand. One way you can do this is by making use of the so-called experimental design or design matrix. For example, you want to check if your condition of interest leads to statistically significant differences in gene expression compared to the control. The design matrix for this would simply <code>~ condition</code>. But designs can get more complex. For example, you might want to check if the effects of your condition are dependent on the sex of the individuals. In this case, you would need to include an interaction term in your design matrix, which would look like this: <code>~ condition * sex</code> or <code>~ condition + sex + condition:sex</code>(the two are equivalent). When creating the DESeqDataSet object (dds), we have already specified a design matrix. One can look it up this way:</p>
+<p>So you have conducted your sequencing experiment and would now like to formulate your scientific question as something the computer can understand. One way you can do this is by making use of the so-called experimental design or design matrix. For example, you want to check if your condition of interest leads to statistically significant differences in gene expression compared to the control. The design matrix for this would simply be <code>~ condition</code>.<br>
+But designs can get more complex. For example, you might want to check if the effects of your condition are dependent on the sex of the individuals. In this case, you would need to include an interaction term in your design matrix, which would look like this: <code>~ condition * sex</code> or <code>~ condition + sex + condition:sex</code>(the two are equivalent).<br>
+When creating the DESeqDataSet object (dds), we have already specified a design matrix. One can look it up this way:</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(DESeq2)</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -702,13 +705,22 @@ To correct this, we will shrink low-count genes with inflated, unconfident log2F
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="index_files/figure-html/volcano-plot-1.png" style="width:100.0%;height:100.0%" class="figure-img"></p>
-<figcaption>Volcano plot of differentially expressed genes between diabetes and healthy subjects</figcaption>
+<figcaption>Volcano plot of differentially expressed genes between type I diabetes and healthy subjects</figcaption>
 </figure>
 </div>
 </div>
 </div>
-<p>Cool, these are the genes that are significantly differentially expressed in subjects with diabetes compared to healthy subjects.</p>
-<p>But here is the lingering problem: While people with expert domain knowledge might look at a set of differentially expressed genes and quickly get which underlying biological process is affected (not that I have ever met such a person), it can be helpful to move the analysis to the level of biological pathways. We will do so in the next part using a technique called gene set enrichment analysis.</p>
+<p>Cool, these could be the genes that are significantly differentially expressed in subjects with type I diabetes compared to healthy subjects.</p>
+<p>BUT! (<em>dum dum dum!</em>)</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>res_thresh <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(res_thresh)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(res_thresh<span class="sc">$</span>padj <span class="sc">&lt;</span> <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 1</code></pre>
+</div>
+</div>
+<p>A meager single gene has passed our adjusted p-value threshold. This indicates that statistical evidence for any of the effects we observe is low. Remember the PCA plot we discussed in part 2 of this series? We see a continuation of the problem here. Type I diabetes samples appear to constitute a heterogeneous class of gene expression profiles. Statements of the form “gene X is significantly higher expressed in type I diabetes subjects compared to healthy controls” is not possible here. The heterogeneity is the trend! And this opens the exciting opportunity to study subgroups in our type I diabetes samples to refine our scientific question. But for tutorial purposes we will proceed with the standard analysis for now.</p>
+<p>There is another lingering problem: While people with expert domain knowledge might look at a set of differentially expressed genes and quickly get which underlying biological process is affected (not that I have ever met such a person), it can be helpful to move the analysis to the level of biological pathways. We will do so in the next part using a technique called gene set enrichment analysis.</p>
 </section>
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
